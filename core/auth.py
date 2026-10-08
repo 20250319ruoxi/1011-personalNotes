@@ -50,6 +50,23 @@ def login_required(view):
     return wrapper
 
 
+MAX_UNLOCKED_TOKENS = 20
+
+
+def mark_share_unlocked(token):
+    unlocked = [t for t in (session.get("share_unlocked") or []) if t != token]
+    unlocked.append(token)
+    session["share_unlocked"] = unlocked[-MAX_UNLOCKED_TOKENS:]
+
+
+def is_share_unlocked(token):
+    return token in (session.get("share_unlocked") or [])
+
+
+def forget_share_unlocked(token):
+    session["share_unlocked"] = [t for t in (session.get("share_unlocked") or []) if t != token]
+
+
 CSRF_EXEMPT = (("/api/auth/register", "POST"), ("/api/auth/login", "POST"))
 SHARE_VERIFY_RE = re.compile(r"^/api/share/[^/]+/verify$")
 

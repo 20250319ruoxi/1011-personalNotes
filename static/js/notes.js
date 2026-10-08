@@ -4,6 +4,8 @@
 import { api } from './api.js';
 import { navigate } from './router.js';
 import { renderMarkdown } from './markdown.js';
+import { renderComments } from './comments.js';
+import { renderSharePanel } from './share.js';
 import { confirmDialog, emptyState, formatDate, noteCard, pagination, skeleton, toast } from './ui.js';
 
 const PAGE_SIZE = 10;
@@ -304,6 +306,17 @@ function paintDetail(page, note) {
   else body.textContent = '（空白笔记）';
   article.appendChild(body);
 
+  // 分享面板与评论区插在操作条上方（收藏按钮由 Phase 7 插入 .detail-actions）
+  const shareSlot = document.createElement('section');
+  shareSlot.id = 'share-panel-slot';
+  shareSlot.className = 'paper share-panel-slot';
+  article.appendChild(shareSlot);
+
+  const commentsSlot = document.createElement('section');
+  commentsSlot.id = 'comments-slot';
+  commentsSlot.className = 'comments-slot';
+  article.appendChild(commentsSlot);
+
   const actions = document.createElement('div');
   actions.className = 'detail-actions';
 
@@ -336,6 +349,25 @@ function paintDetail(page, note) {
 
   article.appendChild(actions);
   page.appendChild(article);
+
+  // 开启/关闭分享后刷新状态徽标与分享面板（就地更新，不整页重渲染）
+  const reload = async () => {
+    try {
+      const data = await api.get(`/api/notes/${note.id}`, { silent: true });
+      const fresh = (data && data.note) || {};
+      const next = STATUS_LABEL[fresh.status] ? fresh.status : 'draft';
+      badge.className = `badge badge-${next}`;
+      badge.textContent = STATUS_LABEL[next];
+      renderSharePanel(shareSlot, fresh, { onChange: reload });
+    } catch (_) { /* 刷新失败时保留原状态 */ }
+  };
+
+  renderSharePanel(shareSlot, note, { onChange: reload });
+  renderComments(commentsSlot, {
+    listPath: `/api/notes/${note.id}/comments`,
+    createPath: `/api/notes/${note.id}/comments`,
+    noteOwnerId: note.id,
+  });
 }
 
 function paintNotFound(page) {

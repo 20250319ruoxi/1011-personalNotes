@@ -142,7 +142,8 @@
 **File:** [phase-6-share-comments.md](phase-6-share-comments.md)
 **Goal:** 完成带密码的分享链接全流程与评论功能，前端交付公开分享页、密码锁屏与评论区。
 **Tasks:** 5
-**Status:** Not Started
+**Status:** Done
+**Completion:** √
 
 ### Phase 7: 收藏、足迹与个人主页
 **File:** [phase-7-profile.md](phase-7-profile.md)

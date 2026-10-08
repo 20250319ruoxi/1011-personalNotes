@@ -179,3 +179,61 @@ def get_user_tags(conn, user_id):
         "GROUP BY t.id ORDER BY count DESC, t.name ASC",
         (user_id,),
     ).fetchall()
+
+
+def get_note_by_share_token(conn, token):
+    return conn.execute(
+        "SELECT * FROM notes WHERE share_token = ? AND status = 'public' AND is_deleted = 0",
+        (token,),
+    ).fetchone()
+
+
+def set_note_share(conn, note_id, token, password_hash):
+    conn.execute(
+        "UPDATE notes SET status = 'public', share_token = ?, share_password_hash = ?, "
+        "published_at = COALESCE(published_at, ?), updated_at = ? WHERE id = ?",
+        (token, password_hash, now_iso(), now_iso(), note_id),
+    )
+    conn.commit()
+
+
+def clear_note_share(conn, note_id):
+    conn.execute(
+        "UPDATE notes SET status = 'private', share_token = NULL, share_password_hash = NULL, "
+        "updated_at = ? WHERE id = ?",
+        (now_iso(), note_id),
+    )
+    conn.commit()
+
+
+def create_comment(conn, note_id, user_id, content):
+    cursor = conn.execute(
+        "INSERT INTO comments (note_id, user_id, content, created_at) VALUES (?, ?, ?, ?)",
+        (note_id, user_id, content, now_iso()),
+    )
+    conn.commit()
+    return cursor.lastrowid
+
+
+def get_comment(conn, comment_id):
+    return conn.execute("SELECT * FROM comments WHERE id = ?", (comment_id,)).fetchone()
+
+
+def soft_delete_comment(conn, comment_id):
+    conn.execute("UPDATE comments SET is_deleted = 1 WHERE id = ?", (comment_id,))
+    conn.commit()
+
+
+def list_comments(conn, note_id, page=1, page_size=10):
+    total = conn.execute(
+        "SELECT COUNT(*) AS n FROM comments WHERE note_id = ? AND is_deleted = 0",
+        (note_id,),
+    ).fetchone()["n"]
+    rows = conn.execute(
+        "SELECT c.*, u.username AS author_username, u.avatar AS author_avatar "
+        "FROM comments c JOIN users u ON u.id = c.user_id "
+        "WHERE c.note_id = ? AND c.is_deleted = 0 "
+        "ORDER BY c.created_at ASC, c.id ASC LIMIT ? OFFSET ?",
+        (note_id, page_size, (page - 1) * page_size),
+    ).fetchall()
+    return rows, total

@@ -249,3 +249,115 @@
   .detail-actions { flex-wrap: wrap; }
   .detail-actions .btn { flex: 1 1 45%; }
 }
+/* ==========================================================================
+   评论区（分享页与作者详情页共用，Phase 6）
+   ========================================================================== */
+
+.comments-title {
+  font-size: var(--fs-h3);
+  font-weight: 600;
+  margin-bottom: var(--sp-4);
+}
+
+.comment-form {
+  margin-bottom: var(--sp-6);
+}
+
+.comment-form-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  align-items: flex-start;
+}
+
+.comment-form-inner .field { width: 100%; }
+
+.comment-login-hint {
+  color: var(--c-text-muted-strong);
+  font-size: var(--fs-sm);
+  margin-bottom: var(--sp-3);
+}
+
+.comment-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.comment {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  border-top: var(--bd);
+  padding: var(--sp-4) 0;
+}
+
+.comment-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--c-accent);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.comment-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.comment-head {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: baseline;
+  margin-bottom: var(--sp-1);
+}
+
+.comment-author {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.comment-time {
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted-strong);
+}
+
+.comment-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--c-text);
+}
+
+.comment-delete {
+  flex: 0 0 auto;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--c-text-muted-strong);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+.comment-delete:hover { color: var(--c-danger-strong); }
+
+.comment-empty {
+  color: var(--c-text-muted-strong);
+  font-size: var(--fs-sm);
+  padding: var(--sp-4) 0;
+}
+
+.comment-error {
+  color: var(--c-danger-strong);
+  font-size: var(--fs-sm);
+}
+
+.comment-more {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--sp-4);
+}

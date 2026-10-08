@@ -86,10 +86,36 @@ def test_xss_fixtures_documents_the_three_executable_verifications():
 # visual-checklist.md · Phase 5
 # ==========================================================================
 
-def phase5_section() -> str:
+def _section(header: str) -> str:
+    """取某个二级标题下的正文，遇到下一个二级标题即停止。
+
+    后续阶段会把新章节追加到文件末尾；若不截断，早期阶段的解析器会把新章节的行
+    也算进来（Phase 6 的表格同样是 6 列且从 1 开始编号），导致行数断言失真。
+    """
     text = VISUAL.read_text(encoding="utf-8")
-    assert "## Phase 5 · 笔记前端" in text, "视觉清单缺少 Phase 5 段落"
-    return text.split("## Phase 5 · 笔记前端", 1)[1]
+    assert header in text, f"视觉清单缺少 {header} 段落"
+    rest = text.split(header, 1)[1]
+    return re.split(r"\n## ", rest, maxsplit=1)[0]
+
+
+def phase5_section() -> str:
+    return _section("## Phase 5 · 笔记前端")
+
+
+def phase6_section() -> str:
+    return _section("## Phase 6 · 分享与评论")
+
+
+def defined_test_names() -> set[str]:
+    names: set[str] = set()
+    for path in (ROOT / "tests").glob("test_*.py"):
+        names.update(re.findall(r"^def (test_\w+)", path.read_text(encoding="utf-8"), re.M))
+    return names
+
+
+def referenced_test_names(text: str) -> set[str]:
+    """行内反引号里引用的 `test_xxx` 名字（不含 `tests/xxx.py` 这类路径）。"""
+    return set(re.findall(r"`(test_\w+)`", text))
 
 
 def test_visual_checklist_has_phase5_section():
@@ -122,3 +148,49 @@ def test_visual_checklist_appends_xss_conclusions():
     assert "xss-fixtures.md" in text
     assert "保存后刷新" in text, "缺少「保存后刷新详情页仍被清洗」结论项"
     assert re.search(r"6\s*(条|行)", text), "缺少 XSS 6 条结论汇总"
+
+
+# ==========================================================================
+# visual-checklist.md · Phase 6
+# ==========================================================================
+
+def test_visual_checklist_has_phase6_section():
+    assert phase6_section().strip(), "Phase 6 段落为空"
+
+
+def test_visual_checklist_phase6_has_thirteen_rows():
+    rows = table_rows(phase6_section(), columns=6)
+    assert [int(r[0]) for r in rows] == list(range(1, 14)), [r[0] for r in rows]
+
+
+def test_visual_checklist_phase6_rows_are_pending_or_backed_by_a_test():
+    for row in table_rows(phase6_section(), columns=6):
+        result = row[5]
+        assert result, f"Phase 6 第 {row[0]} 行「结果」为空"
+        assert PENDING in result or "test_" in result, (
+            f"Phase 6 第 {row[0]} 行既未标注待人工确认，也未引用任何自动断言：{result!r}"
+        )
+
+
+def test_visual_checklist_phase6_references_only_existing_tests():
+    """Phase 6 行内引用的每个 `test_xxx` 都必须真的存在于 tests/ 下。"""
+    available = defined_test_names()
+    assert available, "未在 tests/ 下发现任何测试函数，疑似扫描失效"
+    referenced = referenced_test_names(phase6_section())
+    assert referenced, "Phase 6 段落未引用任何自动断言"
+    missing = sorted(referenced - available)
+    assert not missing, f"Phase 6 清单引用了不存在的测试：{missing}"
+
+
+def test_visual_checklist_phase6_declares_environment_gap():
+    text = phase6_section()
+    assert "没有可用浏览器" in text or "无浏览器" in text
+
+
+def test_visual_checklist_phase6_covers_the_thirteen_required_states():
+    text = phase6_section()
+    for keyword in ("待人工确认（本环境无浏览器）", "该分享链接已失效", "访问密码错误",
+                    "尝试过于频繁，请稍后再试", "留空表示不需要密码", "链接已复制",
+                    "关闭分享", "还没有评论，来说点什么吧", "登录后可发表评论",
+                    "确定要删除这条评论吗？删除后无法恢复。"):
+        assert keyword in text, f"Phase 6 清单缺少关键检查点：{keyword}"

@@ -1,1 +1,179 @@
-/* share.css — 分享面板、密码锁屏与分享页样式（Phase 6 实现）。Phase 1 仅占位，避免 404 影响排查。 */
+/* share.css — 公开分享页、密码锁屏、分享面板与评论区（Phase 6）。
+   颜色/间距/圆角/阴影一律引用 base.css 令牌，不硬编码色值。 */
+
+/* ==========================================================================
+   分享页与文章
+   ========================================================================== */
+
+.share-page {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--sp-8) var(--gutter) var(--sp-16);
+}
+
+.share-article {
+  background-image: url("/static/img/paper.jpg");
+  background-color: var(--c-paper-fallback);
+  border: var(--bd);
+  border-radius: var(--r-2);
+  padding: var(--sp-8);
+}
+
+.share-title {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: var(--sp-3);
+}
+
+.share-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: center;
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted-strong);
+}
+
+.share-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--c-accent);
+  color: var(--c-text);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.share-body {
+  margin: 0 auto;
+  max-width: var(--reading-max);
+  margin-top: var(--sp-6);
+}
+
+/* 评论区与操作条跟随正文字栏宽度，避免正文 720px 而评论区横跨整张纸 */
+.share-actions,
+.share-comments {
+  margin: 0 auto;
+  max-width: var(--reading-max);
+}
+
+.share-actions { margin-top: var(--sp-6); }
+.share-comments { margin-top: var(--sp-8); }
+
+/* ==========================================================================
+   密码锁屏
+   ========================================================================== */
+
+.share-lock {
+  width: min(420px, 100%);
+  margin: var(--sp-16) auto;
+  text-align: center;
+}
+
+.share-lock-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 0 auto var(--sp-4);
+  border-radius: 50%;
+  background: var(--c-primary);
+  color: var(--c-text);
+}
+
+.share-lock-title {
+  margin-bottom: var(--sp-4);
+}
+
+.share-lock-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  text-align: left;
+}
+
+.share-lock input {
+  height: 44px;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+.share-lock.is-shaking { animation: shake .3s; }
+
+/* ==========================================================================
+   响应式
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .share-article { padding: var(--sp-4); }
+}
+
+/* ==========================================================================
+   作者分享面板 SharePanel（Phase 6 Task 4）
+   ========================================================================== */
+
+.share-panel-slot { margin-top: var(--sp-6); }
+
+.share-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+}
+
+.share-toggle-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.switch {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 44px;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.switch input {
+  width: 20px;
+  height: 20px;
+}
+
+.switch input:checked { accent-color: var(--c-primary); }
+
+.share-panel .link-row {
+  display: flex;
+  gap: var(--sp-3);
+}
+
+.share-panel .link-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 44px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-1);
+  background: var(--c-surface);
+  color: var(--c-text-muted-strong);
+}
+
+.share-danger-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .share-panel .link-row { flex-direction: column; }
+}

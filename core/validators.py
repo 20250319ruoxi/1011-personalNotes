@@ -88,6 +88,20 @@ def validate_note_status_for_write(status):
     return True, None
 
 
+MIN_SHARE_PASSWORD_LENGTH = 4
+MAX_SHARE_PASSWORD_LENGTH = 64
+
+
+def validate_share_password(password):
+    if password is None or password == "":
+        return True, None
+    if not isinstance(password, str):
+        return False, "INVALID_PARAM"
+    if not MIN_SHARE_PASSWORD_LENGTH <= len(password) <= MAX_SHARE_PASSWORD_LENGTH:
+        return False, "INVALID_PARAM"
+    return True, None
+
+
 def validate_search_keyword(q):
     if q is None:
         return True, None

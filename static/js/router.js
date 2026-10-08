@@ -120,6 +120,12 @@ registerRoute('/notes/:id', async (root, params) => {
   renderNoteDetail(root, params);
 }, { requiresAuth: true });
 
+// 公开分享页（Phase 6）：无需登录，按 token 拉取内容；设密时先渲染密码锁屏。
+registerRoute('/s/:token', async (root, params) => {
+  const { renderSharePage } = await import('./share.js');
+  renderSharePage(root, params);
+});
+
 // 登录态变化时只重绘顶栏，避免整页重渲染
 store.onChange(() => renderHeader(store.user, location.pathname));
 

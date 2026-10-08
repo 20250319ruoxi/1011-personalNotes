@@ -245,3 +245,98 @@
    来降低纹理干扰，属「半透明暖白层」的等效实现（未引入新色值令牌），观感需人工确认。
 5. **DOM 双端差异**：Node 最小 DOM 断言节点树/属性与 CSS 文本契约，不覆盖浏览器布局、层叠、
    焦点环可见性与动画观感。
+
+---
+
+## Phase 6 · 分享与评论
+
+> 环境说明：本执行环境（Windows 11 / Git Bash）**没有可用浏览器，也没有 jsdom**，无法点击、截图或使用 DevTools。
+> 凡依赖像素渲染、布局结果、动画观感、焦点环可见性、剪贴板真实行为与 toast 位置的检查点，一律标注为
+> 「**待人工确认（本环境无浏览器）**」，**不视为已通过**。
+> 替代验证路径（已执行并给出证据）：
+> 1. `tests/js/render_share.mjs`（复用 `tests/js/dom-shim.mjs` 最小 DOM 双端）真实调用
+>    `static/js/share.js` 的 `renderSharePage` / `renderSharePanel`、`static/js/notes.js` 的
+>    `renderNoteDetail`，断言分享页四态、锁屏交互、面板开启/复制/更新密码/关闭分享与详情页挂载；
+> 2. `tests/js/render_comments.mjs` 真实调用 `static/js/comments.js` 的 `renderComments`，断言头部计数、
+>    两态表单、列表项、删除二次确认、空态、发表评论与「加载更多」分页；
+> 3. `tests/test_share_frontend.py`、`tests/test_comments_frontend.py` 用字节级 CSS 契约断言
+>    `share.css` / `notes.css` 的断点、尺寸与令牌接线；
+> 4. `tests/test_share_api.py`、`tests/test_comments_api.py`、`tests/test_rate_limit.py` 用 Flask test client
+>    驱动分享与评论全链路（含脱敏载荷、三档删除权限、限流隔离）。
+
+| # | 路由 | 视口 | 状态 | 检查点 | 结果 |
+|---|------|------|------|--------|------|
+| 1 | `/s/:token` | 1440×900 | 无密码 | 纸张文章、作者区、正文宽度 720px 居中 | 自动断言通过：`test_share_page_renders_paper_article`（`.share-article` 带 `.paper`、标题、正文 === `renderMarkdown()`）、`test_share_page_meta_shows_author_and_tags`（首字头像 + 用户名 + 「更新于 …」+ 标签）、`test_share_page_and_article_rules`（`.share-body` `max-width:var(--reading-max)`（720px）+ `margin:0 auto`）、`test_share_page_slots_and_title`；**纸张质感与居中观感：待人工确认（本环境无浏览器）** |
+| 2 | `/s/:token` | 1440×900 | 需密码 | 锁屏卡片居中、图标、输入框、按钮 | 自动断言通过：`test_lock_screen_structure`（`.share-lock.paper`、h2「该笔记需要密码访问」、`input[type=password]` + `autocomplete=current-password` + `<label>`、按钮「确认访问」且 `type=submit`、内联 SVG 带 `aria-hidden`）、`test_share_lock_rules`（`width:min(420px,100%)`、`margin:var(--sp-16) auto`、`text-align:center`、输入框 44px、图标 40×40 主色圆底）；**居中与图标观感：待人工确认（本环境无浏览器）** |
+| 3 | `/s/:token` | 1440×900 | 密码错误 | 卡片抖动 + 「访问密码错误」 | 自动断言通过：`test_lock_wrong_password_shakes_and_shows_error`（`.share-lock.is-shaking`、`.field-error` 文案逐字「访问密码错误」、按钮恢复可用、300ms 后移除抖动类）、`test_share_shake_animation`（`@keyframes shake` 含 `translateX(±6px)`、`.share-lock.is-shaking{animation:shake .3s}`）；**抖动动画观感：待人工确认（本环境无浏览器）** |
+| 4 | `/s/:token` | 1440×900 | 限流 | 提示「尝试过于频繁，请稍后再试」，按钮禁用 | 自动断言通过：`test_lock_rate_limited_disables_submit`（`.field-error` 文案逐字、按钮 `disabled` 且带 `disabled` 属性、不渲染正文）、后端 `test_share_password_rate_limited`（第 6 次返回 429 `RATE_LIMITED`）、`test_share_password_limit_does_not_lock_login`（`scope='share'` 与登录限流互不影响）；**禁用态观感：待人工确认（本环境无浏览器）** |
+| 5 | `/s/:token` | 1440×900 | 已失效 | 「该分享链接已失效」+「返回首页」 | 自动断言通过：`test_expired_share_link_state`（标题逐字、说明「作者可能已关闭分享，或链接不正确。」、按钮「返回首页」点击回 `/`、`<title>` 保持「个人笔记」）、后端 `test_disable_share_revokes_link_and_resets_status`（关闭后旧 token 返回 `SHARE_DISABLED`）；**观感：待人工确认（本环境无浏览器）** |
+| 6 | `/s/:token` | 375×812 | 无密码 | 单栏、无横向滚动、正文内边距 16px | 自动断言通过：`test_share_css_mobile_breakpoint`（≤768px `.share-article{padding:var(--sp-4)}`）、`test_share_page_and_article_rules`（`.share-page` 用 `var(--gutter)`，base.css 在 ≤768px 把 `--gutter` 降为 16px）；「无横向滚动」是布局结果：**待人工确认（本环境无浏览器）** |
+| 7 | `/notes/:id` | 1440×900 | 未开启分享 | 面板显示开关与密码输入，无链接行 | 自动断言通过：`test_panel_off_state`（`.share-panel`、`input[type=checkbox][role=switch]` 未勾选、标签「开启分享」、密码框占位「留空表示不需要密码」且 `maxlength=64`、**无 `.link-row`、无只读输入框、无「复制链接」/「关闭分享」**）、`test_detail_mounts_share_panel_and_comments`（`#share-panel-slot.paper` 内含 `.share-panel`）；**观感：待人工确认（本环境无浏览器）** |
+| 8 | `/notes/:id` | 1440×900 | 已开启 | 只读链接 + 复制按钮 + 关闭分享危险按钮 | 自动断言通过：`test_panel_on_state`（只读框值为绝对地址 `http://localhost/s/tok-123`、开关已勾选、按钮齐备「复制链接 / 更新密码 / 关闭分享」、提示「该链接无需密码」）、`test_panel_on_state_reports_password`（设密时提示「该链接已设置密码」）、`test_share_panel_rule` / `test_switch_control_rule` / `test_share_panel_link_row_rule`（面板纵向间距、开关 44px 主色选中态、链接行 flex 且 ≤768px 转纵向）；**观感：待人工确认（本环境无浏览器）** |
+| 9 | `/notes/:id` | 1440×900 | 复制成功 | 右上角 toast「链接已复制」 | 自动断言通过：`test_panel_copy_success_toasts`（写入剪贴板的文本 === 只读框绝对地址、toast 文案「链接已复制」）、`test_panel_copy_failure_falls_back`（剪贴板被拒时不写入、回退提示「请手动复制」）；**toast 实际位置与停留时长：待人工确认（本环境无浏览器）** |
+| 10 | 两处评论区 | 1440×900 | 空态 | 显示「还没有评论，来说点什么吧」 | 自动断言通过：`test_empty_state`（文案逐字、计数「评论（0）」、无「加载更多」、输入区仍在）、`test_detail_mounts_share_panel_and_comments`（详情页 `#comments-slot` 内挂载同一 `.comments` 组件、计数「评论（0）」）；**观感：待人工确认（本环境无浏览器）** |
+| 11 | 分享页评论 | 1440×900 | 未登录 | 输入区替换为「登录后可发表评论」+「去登录」 | 自动断言通过：`test_logged_out_form_replaced_by_hint`（提示文案逐字、无 `textarea`、按钮「去登录」）、`test_logged_out_login_button_keeps_return_path`（点击跳 `/login?redirect=%2Fs%2Ftok-123` 带回跳目标）；**观感：待人工确认（本环境无浏览器）** |
+| 12 | 详情页评论 | 1440×900 | 删除确认 | 弹窗含「确定要删除这条评论吗？删除后无法恢复。」 | 自动断言通过：`test_delete_confirmation_copy`（标题「删除评论」、正文逐字、确认按钮「确定删除」且 `btn-danger`、取消零请求）、`test_delete_confirmed_removes_from_list`（`DELETE /api/comments/1` → 列表移除、计数减一）；后端 `test_delete_permission_matrix_is_server_side_and_unforgeable`（伪造 `can_delete` 仍 403）；**弹窗观感：待人工确认（本环境无浏览器）** |
+| 13 | 两处评论区 | 键盘 | 默认 | Tab 可达输入框与按钮，焦点环可见 | 自动断言通过：`test_comments_keyboard_order`（DOM 顺序 = 输入框 → 「发表评论」→ 各条评论「删除」）、`test_lock_screen_structure`（锁屏 Tab 序列 = 密码输入 → 「确认访问」）、`test_innerhtml_hits_are_classified_and_reported`（评论内容一律 `textContent`，无新增 HTML 出口）；**焦点环可见性与真实 Tab 走查：待人工确认（本环境无浏览器）** |
+
+### Phase 6 · 安全不变式走查
+
+| # | 走查项 | 结论 |
+|---|--------|------|
+| 1 | 公开分享载荷不含 `share_token` / `share_password_hash` / `user_id` / 作者邮箱 | 自动断言通过：`test_public_share_payload_excludes_sensitive_fields`（字段白名单 + 原始响应体不含敏感串，并先用「所有者详情载荷确实带 `share_token`」证明该断言有区分力）；`test_public_share_page_is_readable_without_login` |
+| 2 | 猜 id 无法读取他人公开笔记（需先经 `/api/share/<token>` 解锁会话） | 自动断言通过：`test_only_owner_can_manage_share`、`test_shared_note_is_readable_by_logged_in_user`（未访问过分享链接的登录用户走 `NOT_FOUND` 分支，`api/notes.py` 的非作者分支要求 `is_share_unlocked(token)`） |
+| 3 | 三档删除权限（评论作者 / 笔记作者 / 无关用户） | 自动断言通过：`test_delete_permission_matrix`、`test_delete_permission_matrix_is_server_side_and_unforgeable`（`can_delete` 由服务端按 viewer 计算；无关用户删除返回 403 `FORBIDDEN`；笔记作者可删他人评论） |
+| 4 | 设密分享的评论读写都要求已解锁 | 自动断言通过：`test_password_protected_comments_require_unlock`（未解锁 401 `SHARE_PASSWORD_REQUIRED`，`verify` 后 200）、`test_anonymous_cannot_comment_on_share`（匿名写 401，匿名读 200） |
+| 5 | 删除评论为软删除，列表不再返回但数据行保留 | 自动断言通过：`test_comment_delete_is_soft_and_row_survives`（直查 DAO：`is_deleted = 1`、`content` 仍在、列表 `total = 0`）、`test_deleted_comment_disappears_from_list` |
+| 6 | 评论内容只经 `textContent` 进入 DOM（不新增 HTML 出口） | 自动断言通过：`test_innerhtml_hits_are_classified_and_reported`（全项目 `innerHTML` 赋值逐个分类；Phase 6 仅新增 `share.js` 的 `renderMarkdown(...)` 与锁形 SVG 静态字面量两处，均非用户输入） |
+
+### 证据与命令（Phase 6）
+
+| 命令 | 结果 |
+|------|------|
+| `.venv/Scripts/python.exe -m pytest tests/ -q` | **全部通过**（详见本阶段执行报告；含本阶段新增 5 个测试文件与 1 处追加用例） |
+| `.venv/Scripts/python.exe -m pytest tests/test_share_api.py tests/test_comments_api.py tests/test_rate_limit.py -q` | 分享/评论后端契约全部通过 |
+| `node tests/js/render_share.mjs` | `errors: {}`；输出分享页四态、锁屏交互、面板开启/复制/更新/关闭、详情页挂载 |
+| `node tests/js/render_comments.mjs` | `errors: {}`；输出骨架、列表、空态、未登录、发表、删除、分页、失败态 |
+| `.venv/Scripts/python.exe tests/manual/check_contrast.py` | 全部达标（退出码 0）；Phase 6 未引入新色值令牌 |
+| `node --check static/js/share.js` / `node --check static/js/comments.js` | 语法通过 |
+
+代码定位：公开分享页与分享面板 `static/js/share.js`（`renderSharePage` / `renderSharePanel`）；评论区
+`static/js/comments.js`（`renderComments`）；详情页接入 `static/js/notes.js renderNoteDetail()` 的
+`#share-panel-slot` / `#comments-slot`；路由 `static/js/router.js`（`/s/:token` 公开）；
+接口 `api/share.py`、`api/comments.py`；DAO `core/db.py`；解锁态与校验 `core/auth.py`、
+`core/validators.py`；样式 `static/css/share.css`、`static/css/notes.css`。
+
+### 待人工确认的截图清单（本环境无浏览器，未采集）
+
+- `phase6-share-nopass-1440x900.png`（行 1）
+- `phase6-share-lock-1440x900.png`（行 2）
+- `phase6-share-lock-error-1440x900.png`（行 3）
+- `phase6-share-lock-limited-1440x900.png`（行 4）
+- `phase6-share-expired-1440x900.png`（行 5）
+- `phase6-share-nopass-375x812.png`（行 6）
+- `phase6-panel-off-1440x900.png`（行 7）
+- `phase6-panel-on-1440x900.png`（行 8）
+- `phase6-panel-copied-toast-1440x900.png`（行 9）
+- `phase6-comments-empty-1440x900.png`（行 10）
+- `phase6-comments-loggedout-1440x900.png`（行 11）
+- `phase6-comment-delete-confirm-1440x900.png`（行 12）
+- 键盘走查（行 13）与剪贴板真实行为（行 9 的失败回退）无截图，按行逐项手工确认
+
+### Phase 6 遗留风险
+
+1. **密码锁屏的抖动动画与真实剪贴板行为未经浏览器验证**：本环境无浏览器、无 jsdom。
+   已断言类名切换、300ms 后移除抖动类、剪贴板成功/失败两条分支的回调与文案，
+   但动画观感与 `navigator.clipboard` 在非安全上下文下的真实降级需人工复核。
+2. **分享面板密码框的可见性取舍**：计划文字写「密码输入仅在开关打开时显示」，但同阶段的
+   验收清单第 7 行要求「未开启分享时面板显示开关与密码输入」，且「打开开关 → 带密码开启」
+   的流程要求密码框在开启前即可填写。实现选择「密码框始终可见」（满足清单第 7 行与开启流程），
+   因此关闭分享后密码框不隐藏而是被清空。
+3. **`renderComments` 的 `noteOwnerId` 参数未被使用**：删除权限完全由服务端 `can_delete` 与
+   `DELETE /api/comments/<id>` 自行判定，前端不参与鉴权；该参数仅保留计划规定的调用签名。
+4. **分享页 GET 写入会话解锁态**：无密码分享没有 `verify` 环节，为满足「登录访客经分享链接
+   打开后可读详情」且「猜 id 不可读」，`GET /api/share/<token>` 成功时会把 token 记入会话
+   （`mark_share_unlocked`）。这是会话态而非数据库写入，GET 仍无持久化副作用。
+5. **DOM 双端差异**：Node 最小 DOM 断言节点树/属性与 CSS 文本契约，不覆盖浏览器布局、层叠、
+   焦点环可见性与动画观感。

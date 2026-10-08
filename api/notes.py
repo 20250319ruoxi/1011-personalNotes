@@ -1,7 +1,7 @@
 from flask import Blueprint, request
 
 from core import db as db_module
-from core.auth import current_user, login_required
+from core.auth import current_user, is_share_unlocked, login_required
 from core.markdown import to_plain_text
 from core.response import fail, ok
 from core.validators import (parse_pagination, validate_content,
@@ -104,7 +104,12 @@ def get_note_detail(note_id):
         return fail("NOT_FOUND")
 
     if note["user_id"] != current_user()["id"]:
-        # Phase 6 在此追加「分享已开启且当前会话已解锁」分支
+        # 他人笔记只有在「已公开分享 + 当前会话已解锁该 token」时才可读；
+        # 仅凭猜 id 无法满足（解锁需先经 /api/share/<token>）。载荷不带分享字段。
+        if (note["status"] == "public" and note["share_token"]
+                and is_share_unlocked(note["share_token"])):
+            return ok({"note": note_to_dict(note, db_module.get_note_tags(conn, note_id),
+                                            include_share=False)})
         return fail("NOT_FOUND")
 
     return ok({"note": note_to_dict(note, db_module.get_note_tags(conn, note_id),
