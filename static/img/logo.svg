@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="个人笔记">
+  <rect x="5" y="3" width="22" height="26" rx="3" fill="none" stroke="#C3A47B" stroke-width="2"/>
+  <path d="M11 3v26" stroke="#C3A47B" stroke-width="2"/>
+  <circle cx="11" cy="8" r="1.6" fill="#D9B98C"/>
+  <circle cx="11" cy="16" r="1.6" fill="#D9B98C"/>
+  <circle cx="11" cy="24" r="1.6" fill="#D9B98C"/>
+  <path d="M19.5 15.4c-1.5-2.1-4.2-1.9-5-.4-.6 1.1-.3 2.3.7 3.3l4.3 3.9 4.3-3.9c1-1 1.3-2.2.7-3.3-.8-1.5-3.5-1.7-5 .4z" fill="#C3A47B"/>
+</svg>

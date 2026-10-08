@@ -1,0 +1,62 @@
+import sqlite3
+from datetime import datetime, timezone
+from pathlib import Path
+
+from flask import current_app, g
+
+
+def connect(database):
+    Path(database).parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(database)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
+    return conn
+
+
+def get_db():
+    if "db" not in g:
+        g.db = connect(current_app.config["DATABASE"])
+    return g.db
+
+
+def close_db(_exc=None):
+    conn = g.pop("db", None)
+    if conn is not None:
+        conn.close()
+
+
+def init_app(app):
+    app.teardown_appcontext(close_db)
+
+
+def init_db(app):
+    schema = Path(app.config["SCHEMA_FILE"]).read_text(encoding="utf-8")
+    conn = connect(app.config["DATABASE"])
+    try:
+        conn.executescript(schema)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def current_app_config(key):
+    return current_app.config[key]
+
+
+def now_iso():
+    """全项目唯一的时间来源：ISO8601 UTC，秒级精度，带 Z 后缀。"""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def get_user_by_id(conn, user_id):
+    return conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+
+
+def get_user_by_email(conn, email):
+    return conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+
+
+def get_user_by_username(conn, username):
+    return conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
