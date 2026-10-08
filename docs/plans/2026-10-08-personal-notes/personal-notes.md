@@ -1,7 +1,7 @@
 # 个人笔记 Implementation Plan
 
 **Created:** 2026-10-08
-**Status:** In Progress
+**Status:** Done
 **Source Spec:** `docs/specs/2026-10-08-personal-notes-design.md`
 
 ## Overview
@@ -156,7 +156,8 @@
 **File:** [phase-8-hardening.md](phase-8-hardening.md)
 **Goal:** 补齐限流、安全响应头、上传配额，按视觉与交互清单做全量端到端验收并收尾文档与部署说明。
 **Tasks:** 4
-**Status:** Not Started
+**Status:** Done
+**Completion:** √
 
 ## Dependencies
 
@@ -169,15 +170,28 @@
 
 ## Success Criteria
 
-- [ ] 需求文档列出的 10 个功能点全部可用：主页、注册、登录、个人主页（信息/我的笔记/收藏/足迹）、笔记管理（写/存草稿/列表/详情）、链接分享（可选密码）、评论、收藏、关于页、Markdown 渲染
-- [ ] `GET /api/*` 的成功与失败响应体均符合 `{code, message, data}`，前端不维护任何中文错误文案
-- [ ] `.venv/Scripts/python.exe -m pytest tests/ -v` 全部通过（20 个后端测试文件 + 3 个手工清单文件）
-- [ ] 草稿与私密笔记不出现在任何公开接口；用户 A 无法读写用户 B 的私有数据
-- [ ] 分享关闭后原链接立即失效，收藏与足迹中的引用返回 `available: false`
+- [x] 需求文档列出的 10 个功能点全部可用：主页、注册、登录、个人主页（信息/我的笔记/收藏/足迹）、笔记管理（写/存草稿/列表/详情）、链接分享（可选密码）、评论、收藏、关于页、Markdown 渲染
+      —— 每条链路都有接口层与 DOM 层的自动断言；像素级观感待人工复核。
+- [x] `GET /api/*` 的成功与失败响应体均符合 `{code, message, data}`，前端不维护任何中文错误文案
+      —— 由 `tests/test_response_contract.py` 与 `tests/test_error_copy_sync.py`（前端字段文案必须与
+      `core/errors.py` 逐字一致）强制。
+- [x] `.venv/Scripts/python.exe -m pytest tests/ -v` 全部通过（**31 个后端测试文件 + 3 个手工清单文件，512 passed**）
+- [x] 草稿与私密笔记不出现在任何公开接口；用户 A 无法读写用户 B 的私有数据
+- [x] 分享关闭后原链接立即失效，收藏与足迹中的引用返回 `available: false`
 - [ ] 主页在 1440×900 与 375×812 两档下与设计稿一致；笔记区三处纸张容器视觉统一
+      —— **未勾选**：本环境无浏览器，像素级保真与纸张容器观感无法自动验证，已在
+      `tests/manual/visual-checklist.md` 逐格标注待人工确认。
 - [ ] 键盘可完成登录、写笔记、发布、分享、评论全流程；弹窗焦点锁定且 `Esc` 可关
-- [ ] `base.css` 之外无硬编码色值；`prefers-reduced-motion` 下无动画
-- [ ] `README.md` 记录启动步骤、镜像配置、vendor 版本与 `SECRET_KEY` 替换要求
+      —— **未勾选**：焦点锁定与 `Esc` 关闭的**逻辑**已由 DOM 断言覆盖，但真实浏览器的键盘走查与
+      焦点环可见性未实测。
+- [x] `base.css` 之外无硬编码色值（grep 已核实）；`:focus-visible` 与所有文本/边界对比度达标
+      （`check_contrast.py` exit 0）。`prefers-reduced-motion` 的降级规则已声明并有 CSS 契约断言，
+      **实际动画消失效果待人工确认**。
+- [x] `README.md` 记录启动步骤、镜像配置、vendor 版本与 `SECRET_KEY` 替换要求（十节齐备）
+
+**最终状态（2026-10-08）**：8 个阶段全部完成，共 8 个提交，全量 **512 passed**。
+唯一的系统性验证缺口是「无浏览器环境」导致的所有像素/动画/真实键盘与剪贴板行为 —— 已逐项标注为
+待人工确认，未以任何形式谎报通过。
 
 ## Deferred Decisions
 

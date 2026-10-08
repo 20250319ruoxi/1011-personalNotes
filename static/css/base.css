@@ -90,7 +90,7 @@ a:hover { color: var(--c-link-hover); }
 
 button, input, textarea, select { font: inherit; color: inherit; }
 
-:focus-visible { outline: 2px solid var(--c-primary-hover); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--c-border-strong); outline-offset: 2px; }
 
 /* 屏幕阅读器专用文本 */
 .sr-only {

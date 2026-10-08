@@ -45,6 +45,7 @@ TEXT_PAIRS: list[tuple[str, str, str]] = [
 BOUNDARY_PAIRS: list[tuple[str, str, str]] = [
     ("交互描边/页面底", "c-border-strong", "c-page"),
     ("交互描边/卡片底", "c-border-strong", "c-surface"),
+    ("焦点环描边/页面底", "c-border-strong", "c-page"),
 ]
 
 

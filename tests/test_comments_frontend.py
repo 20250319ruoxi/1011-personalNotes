@@ -313,6 +313,14 @@ def test_comment_delete_is_a_text_button(notes_css):
     assert prop(body, "color:var(--c-text-muted-strong)")
 
 
+def test_comment_delete_meets_min_touch_target(notes_css):
+    """Phase 8 触摸目标契约：评论删除按钮命中区域需 ≥ 44×44px。"""
+    body = find_rule(notes_css, ".comment-delete")
+    assert body is not None, "缺少 .comment-delete"
+    assert prop(body, "min-height:44px"), "评论删除按钮命中高度需 ≥ 44px"
+    assert prop(body, "min-width:44px"), "评论删除按钮命中宽度需 ≥ 44px"
+
+
 # ==========================================================================
 # 键盘可达性（Tab 序列的 DOM 顺序近似）
 # ==========================================================================

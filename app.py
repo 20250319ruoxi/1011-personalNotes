@@ -24,6 +24,7 @@ def create_app(config_object=Config):
     auth_module.init_app(app)
 
     register_blueprints(app)
+    register_security_headers(app)
     register_error_handlers(app)
     register_spa_fallback(app)
     return app
@@ -31,6 +32,30 @@ def create_app(config_object=Config):
 
 BLUEPRINT_MODULES = ("auth", "users", "notes", "tags", "share",
                      "comments", "favorites", "history", "uploads")
+
+
+CSP = (
+    "default-src 'self'; "
+    "script-src 'self'; "
+    "style-src 'self'; "
+    "img-src 'self' data:; "
+    "font-src 'self'; "
+    "connect-src 'self'; "
+    "object-src 'none'; "
+    "base-uri 'none'; "
+    "form-action 'self'; "
+    "frame-ancestors 'none'"
+)
+
+
+def register_security_headers(app):
+    @app.after_request
+    def apply_security_headers(response):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Content-Security-Policy"] = CSP
+        return response
 
 
 def register_blueprints(app):
@@ -98,6 +123,9 @@ if __name__ == "__main__":
     from waitress import serve
 
     cli_app = create_app()
+    if cli_app.config["SECRET_KEY"] == "dev-only-change-me":
+        print("[警告] 正在使用默认 SECRET_KEY，仅可用于本地开发；"
+              "部署前请通过环境变量 SECRET_KEY 替换。")
     command = sys.argv[1] if len(sys.argv) > 1 else "run"
     if command == "init-db":
         with cli_app.app_context():

@@ -449,3 +449,123 @@
    故该形参仅保留签名兼容，不接任何打开行为（与 Phase 6 `renderComments` 的 `noteOwnerId` 同类取舍）。
 6. **DOM 双端差异**：Node 最小 DOM 断言节点树/属性与 CSS 文本契约，不覆盖浏览器布局、层叠、
    焦点环可见性、色块渲染与动画观感。
+
+---
+
+## Phase 8 · 全量矩阵汇总与终检
+
+> 环境说明：本执行环境（Windows 11 / Git Bash）**没有可用浏览器，也没有 jsdom**，无法截图、无法使用 DevTools。
+> 因此本「全量矩阵」按 10 条路由 × **3 档视口（1440×900 / 1024×768 / 375×812）** 逐格给出结论：
+> 结构与契约部分引用真实运行的自动断言（`test_...` / Node harness / `walkthrough_probe.py`）；
+> 像素布局、动画观感、横向滚动、焦点环可见性、toast 位置等一律标注 **`待人工确认（本环境无浏览器）`**，**不视为已通过**。
+> （阶段文件给出的原始表格只有 1440×900 与 375×812 两列；本汇总按验收清单「10 行 × 3 档视口」的要求补齐 1024×768 一列。）
+
+### 10 条路由 × 3 档视口
+
+| 路由 | 1440×900 | 1024×768 | 375×812 | 必须核对的状态 |
+|------|----------|----------|---------|----------------|
+| `/` | 合约自动✓ `test_home_hero_copy_verbatim`/`test_home_features_four_items`/`test_hero_underline_and_heart`；像素 待人工确认（本环境无浏览器） | 合约自动✓ 同上（≥768px 桌面分支）；像素 待人工确认（本环境无浏览器） | 合约自动✓ `test_hero_mobile_overlay`/`test_features_grid`（单列）；「无横向滚动条」待人工确认（本环境无浏览器） | 默认、滚动阴影（`test_header_scroll_shadow_toggles`）、抽屉展开（`test_header_drawer_open_escape_and_scrim`）、减动效（`test_note_card_hover_and_reduced_motion` + base.css `prefers-reduced-motion`） |
+| `/login` | 合约自动✓ `test_login_page_structure_and_copy`/`test_auth_card_dimensions`（min(420px,100%)）；像素 待人工确认（本环境无浏览器） | 合约自动✓ 同上；像素 待人工确认（本环境无浏览器） | 合约自动✓ `test_auth_input_height_and_invalid_state`（44px）；换行/溢出待人工确认（本环境无浏览器） | 默认、字段错误（`test_email_blur_marks_invalid_and_clears_on_fix`）、提交中（`test_submit_enters_loading_state`）、请求失败（`test_login_wrong_password`） |
+| `/register` | 合约自动✓ `test_register_page_structure_and_copy`/`test_register_fields_types_and_autocomplete`；像素 待人工确认（本环境无浏览器） | 合约自动✓ 同上；像素 待人工确认（本环境无浏览器） | 合约自动✓ `test_auth_card_dimensions`（窄屏自适应）；换行待人工确认（本环境无浏览器） | 默认、字段错误（`test_register_username_password_confirm_validation`、`test_password_blur_reports_weak`） |
+| `/about` | 合约自动✓ `test_about_page_sections`（四区块）/`test_about_paper_spacing`；像素 待人工确认（本环境无浏览器） | 合约自动✓ 同上；像素 待人工确认（本环境无浏览器） | 合约自动✓ `test_about_tech_list_two_columns`（≤768px 单列）；溢出待人工确认（本环境无浏览器） | 默认 |
+| `/notes` | 合约自动✓ `test_toolbar_status_filter_buttons`/`test_note_grid_auto_fill`/`test_note_card_paper_styles`；像素 待人工确认（本环境无浏览器） | 合约自动✓ 同上；像素 待人工确认（本环境无浏览器） | 合约自动✓ `test_notes_css_mobile_breakpoint`（单列、搜索整宽）；「无横向滚动」待人工确认（本环境无浏览器） | 有数据（`walkthrough_probe.py` C12–C15）、加载骨架（`test_loading_shows_six_skeletons`）、空态（`test_empty_state_without_filters`）、搜索无结果（`test_empty_state_with_filters`） |
+| `/notes/new` | 合约自动✓ `test_editor_new_mode_structure`/`test_editor_wrap_and_paper`/`test_editor_panes_split`；像素 待人工确认（本环境无浏览器） | 合约自动✓ 同上；像素 待人工确认（本环境无浏览器） | 合约自动✓ `test_editor_tabs_hidden_on_desktop_visible_on_mobile`/`test_mobile_pane_toggle`（编辑/预览切换）；布局 待人工确认（本环境无浏览器） | 默认、输入中（`test_preview_is_debounced_and_routed_through_render_markdown`）、脏标记（`test_status_count_and_dirty_marker`/`test_navigate_is_blocked_while_dirty_and_clears_flag`）、预览切换（`test_mobile_pane_toggle`） |
+| `/notes/:id` | 合约自动✓ `test_detail_structure_and_meta`/`test_detail_css`/`test_detail_actions_are_favorite_edit_delete`；像素 待人工确认（本环境无浏览器） | 合约自动✓ 同上；像素 待人工确认（本环境无浏览器） | 合约自动✓ `test_share_css_mobile_breakpoint` 同源规则（正文 16px 内边距）；「无横向滚动」待人工确认（本环境无浏览器） | 有数据、删除确认（`test_detail_delete_confirmation_copy`）、不存在（`test_detail_missing_note_shows_empty_state`）、已收藏（`test_detail_favorite_click_posts_and_flips`） |
+| `/me` | 合约自动✓ `test_info_card_shows_avatar_username_email_bio_joined`/`test_profile_form_grid_and_mobile`/`test_profile_card_and_avatar_rules`；像素 待人工确认（本环境无浏览器） | 合约自动✓ 同上；像素 待人工确认（本环境无浏览器） | 合约自动✓ `test_profile_form_grid_and_mobile`（单列、按钮整宽）/`test_profile_tabs_rule`（`overflow-x:auto`）；换行观感待人工确认（本环境无浏览器） | 四 Tab（`test_tab_buttons_are_tabs`）、三处空态（`test_notes_tab_empty_state`/`test_favorites_empty_state`/`test_history_empty_state`）、失效收藏（`test_favorites_list_available_and_stale_entries`）、清空确认（`test_clear_history_confirmation_copy`） |
+| `/s/:token` | 合约自动✓ `test_share_page_renders_paper_article`/`test_lock_screen_structure`/`test_share_page_and_article_rules`；像素 待人工确认（本环境无浏览器） | 合约自动✓ 同上；像素 待人工确认（本环境无浏览器） | 合约自动✓ `test_share_css_mobile_breakpoint`（`padding:var(--sp-4)`）；「无横向滚动」待人工确认（本环境无浏览器） | 无密码（`walkthrough_probe.py` D18）、需密码（D23 `SHARE_PASSWORD_REQUIRED`）、密码错误（`test_lock_wrong_password_shakes_and_shows_error`）、限流（`test_lock_rate_limited_disables_submit`）、已失效（`test_expired_share_link_state`） |
+| 全局 | 合约自动✓ `test_logout_uses_confirm_dialog_with_escape`、`test_detail_delete_confirmation_copy`、`test_post_comment_clears_input_appends_and_toasts`、`test_comments_keyboard_order`；观感 待人工确认（本环境无浏览器） | 合约自动✓ 同上；观感 待人工确认（本环境无浏览器） | 合约自动✓ `test_toggle_visible_only_on_mobile`/`test_header_drawer_open_escape_and_scrim`；观感 待人工确认（本环境无浏览器） | toast、二次确认弹窗、键盘焦点、`prefers-reduced-motion` |
+
+---
+
+## Phase 8 · 触摸目标检查（≥ 44×44px，375px 宽度）
+
+**可自动化部分（已执行）**：断言交互控件在 CSS 中声明了 ≥ 44px 的命中高度/宽度。
+命令：`grep -rnE "min-height:\s*44px|min-width:\s*44px|height:\s*44px" static/css/*.css`
+
+| 控件 | 命中尺寸声明 | 证据 |
+|------|--------------|------|
+| 顶栏链接（含品牌与导航） | `.nav-links a` `min-height:44px` | base.css:304；`test_header_logged_in_links` |
+| 汉堡按钮 | `.nav-toggle` `44×44px` | base.css:335；`test_toggle_visible_only_on_mobile` |
+| 抽屉内条目 | ≤768px `.nav-links a, .nav-user a` `min-height:44px` | base.css:388；`test_header_drawer_open_escape_and_scrim` |
+| 头像菜单条目 | `.avatar-menu-item` `min-height:44px` | base.css:436；`test_avatar_menu_items_and_open_state` |
+| 卡片按钮（移除/收藏/分页） | `.btn` `min-height:44px`（`.note-remove`/`.favorite-remove`/`.pagination-prev`/`.pagination-next` 均为 `.btn`） | base.css:130；`test_stale_card_contract`、`test_favorite_button_style_uses_tokens` |
+| 分页按钮 | `.pagination-prev/.next` 复用 `.btn` `min-height:44px` | base.css:130；`test_toolbar_sort_buttons` 同源 |
+| 评论删除按钮 | **本阶段修正**：`.comment-delete` 新增 `min-height:44px; min-width:44px` | notes.css:342；新增回归 `test_comment_delete_meets_min_touch_target` |
+| 表单输入/按钮 | `.field input/textarea/select` 与页内 `.btn` `min-height:44px` | base.css:130/190；`test_auth_input_height_and_invalid_state` |
+| 个人主页 Tab | `.profile-tabs .tab` `min-height:44px` | profile.css:22；`test_profile_tabs_rule` |
+| 分享锁屏输入/按钮 | `height:44px` | share.css:105/148/168；`test_lock_screen_structure` |
+
+**结论**：11 处声明式命中尺寸断言全部通过；其中 `.comment-delete` 原为 `padding:0` 的纯文本按钮（约 24×21px），
+本阶段按验收要求补足为 ≥ 44×44px（见下方「实现后批判性复检」）。
+**实际设备/浏览器中的逐元素测量：待人工确认（本环境无浏览器）** —— 需在 375px 宽度下用 DevTools 元素检查逐个复核命中区域。
+
+---
+
+## Phase 8 · 实现后批判性复检（自动审计替代）
+
+阶段文件要求「以真实窗口依次浏览 10 条路由，记录视觉层级/间距/文本溢出/元素重叠/对比度问题并修复」。
+本环境无浏览器，**无法进行真实视觉评判**，故代之以可执行的自动审计，并明确列出仍需人工目视的部分。
+**声明：本段不主张已发生任何视觉观感上的批判性复核。**
+
+### 自动审计（均已执行）
+
+| 审计项 | 命令 | 结论 |
+|--------|------|------|
+| 无内联样式（严格 CSP 前提） | `grep -rn 'style="' index.html static/js static/css` | `no inline style` |
+| 无内联事件处理 | `grep -rn 'onclick=\|onerror=\|onload=' index.html static/js` | `no inline handler` |
+| 无 CSSOM 内联样式写入 | `grep -rn '\.style\.\|setAttribute('style'\|cssText' index.html static/js static/css` | `none`（CSP `style-src` 不拦截 CSSOM，但本项目亦未使用） |
+| 非 base.css 无硬编码色值 | `grep -rnE '#[0-9a-fA-F]{3,8}\b\|rgba?\(' static/css/*.css`（排除 base.css） | 空；令牌是唯一颜色来源 |
+| 对比度全表 | `.venv/Scripts/python.exe tests/manual/check_contrast.py` | 全部达标（退出码 0），见下表 |
+| `innerHTML` 出口分类 | `grep -rn 'innerHTML' static/js/` | 10 处赋值：`editor.js:166/315`、`markdown.js:50`、`notes.js:313`、`share.js:147` 经 `renderMarkdown`（唯一 HTML 出口）；`home.js:46` 静态 SVG 字面量、`share.js:191` 静态 SVG 字面量、`router.js:76` 静态字面量、`router.js:65/73` 清空为 `''`；无用户输入直写 `innerHTML`。由 `test_innerhtml_hits_are_classified_and_reported` 守护 |
+| ARIA 属性齐备性 | `grep -rhoE 'aria-[a-z]+' index.html static/js \| sort \| uniq -c` | `aria-label`×17、`aria-hidden`×8、`aria-pressed`×6、`aria-expanded`×4、`aria-modal`×2、`aria-live`×2、`aria-invalid`×2、`aria-current`×2、`aria-atomic`/`aria-labelledby`/`aria-haspopup`/`aria-describedby`/`aria-controls`/`aria-busy` 各 1 |
+| 焦点环对比度修正 | `tests/test_contrast.py::test_focus_ring_indicator_meets_non_text_contrast` | `:focus-visible` 由 `--c-primary-hover`（2.85:1 ❌）改为 `--c-border-strong`（3.29:1 ✅） |
+| 触摸目标 | `tests/test_comments_frontend.py::test_comment_delete_meets_min_touch_target` | `.comment-delete` 补足 44×44px |
+
+### 焦点环修复后的完整对比度表
+
+命令：`.venv/Scripts/python.exe tests/manual/check_contrast.py`（退出码 0）
+
+| 组合 | 前景 / 背景 | 实测 | 要求 |
+|------|-------------|------|------|
+| 主按钮静止 文字/底色 | #3D3630 / #D9B98C | 6.37:1 | ≥4.5:1 ✅ |
+| 主按钮悬停 文字/底色 | #3D3630 / #C3A47B | 5.04:1 | ≥4.5:1 ✅ |
+| 正文 文字/页面底 | #3D3630 / #FAF8F5 | 11.20:1 | ≥4.5:1 ✅ |
+| 次文字强化 文字/页面底 | #6E6459 / #FAF8F5 | 5.46:1 | ≥4.5:1 ✅ |
+| 链接 文字/页面底 | #8A6D42 / #FAF8F5 | 4.56:1 | ≥4.5:1 ✅ |
+| 链接悬停 文字/页面底 | #6E5228 / #FAF8F5 | 6.83:1 | ≥4.5:1 ✅ |
+| 危险按钮 文字/卡片底 | #9E4436 / #FFFFFF | 6.30:1 | ≥4.5:1 ✅ |
+| 危险按钮悬停 白字/危险底 | #FFFFFF / #9E4436 | 6.30:1 | ≥4.5:1 ✅ |
+| 字段错误 文字/页面底 | #9E4436 / #FAF8F5 | 5.94:1 | ≥4.5:1 ✅ |
+| 成功 toast 白字/底色 | #FFFFFF / #4F6B41 | 5.98:1 | ≥4.5:1 ✅ |
+| 失败 toast 白字/底色 | #FFFFFF / #9E4436 | 6.30:1 | ≥4.5:1 ✅ |
+| 信息 toast 白字/底色 | #FFFFFF / #8A6D42 | 4.83:1 | ≥4.5:1 ✅ |
+| 顶栏激活链接 文字/顶栏底 | #6E5228 / #FFFFFF | 7.24:1 | ≥4.5:1 ✅ |
+| 交互描边 页面底 / 卡片底 | #A6835A / #FAF8F5 · #FFFFFF | 3.29 / 3.49:1 | ≥3.0:1 ✅ |
+| **焦点环描边 页面底（本阶段新增）** | **#A6835A / #FAF8F5** | **3.29:1** | **≥3.0:1 ✅** |
+| ~~焦点环描边（修复前）~~ | ~~#B08F63 / #FAF8F5~~ | ~~2.85:1 ❌~~ | 已修正 |
+
+### 仍需人工目视的部分（本环境无浏览器，未复核）
+
+1. 10 条路由在 1440/1024/375 三档下的**视觉层级、间距一致性、文本溢出、元素重叠**。
+2. 移动端遮罩上正文（`--c-on-image` 叠加照片）的**实际可读性**（静态令牌无法覆盖照片底纹）。
+3. `prefers-reduced-motion` 在 DevTools 中模拟后**动画是否真的消失**（CSS 已压到 `.01ms !important`）。
+4. 完整 **Tab 走查与焦点环可见性**（含新 `--c-border-strong` 焦点环的实际观感）。
+5. 表单字段聚焦态（`.field :focus` 的 `--c-primary-hover` 描边 + `--c-accent` 光晕）**观感**；
+   其描边对字段自身白底为 **3.02:1**（达 3:1），光晕为装饰性叠加（页面底 1.76:1）—— 见遗留风险。
+6. toast 位置/停留时长、分享锁屏抖动动画、真实剪贴板成功/失败回退。
+
+### Phase 8 遗留风险
+
+1. **分享密码为「会话级解锁」，不为「口令级」**：无密码分享被读一次即把 token 记入该会话；
+   之后作者再为该 token 设置密码时，**已解锁过的同一会话不会被回溯上锁**
+   （`walkthrough_probe.py` D23 的 `[NOTE]` 行实测 `status=200`）。新访客仍会看到锁屏（D23 主断言通过）。
+   若要「设密即对所有会话生效」，需在 `enable_share` 设密时通知/失效既有解锁态，属行为变更，本阶段未改。
+2. **表单聚焦光晕未纳入 3:1**：`.field :focus` 的 `--c-accent` 光晕对页面底仅 1.76:1；
+   但该状态的主指示器是描边（`--c-primary-hover`，对字段自身白底 3.02:1，达 3:1），
+   光晕为装饰性叠加。为避免偏离已确认设计且超出本阶段命名缺陷范围，未改动；如评审要求光晕本身达标，
+   可在 `base.css` 将光晕改为 `--c-border-strong`（与全局焦点环统一）。
+3. **base.css 内仍有 3 处 `rgba()` 非令牌叠加**（:238 卡片内描边高光、:359 骨架片、:518 抽屉遮罩），
+   均在「唯一颜色来源」的 base.css 内，不构成跨文件硬编码；如需完全令牌化可在后续阶段收敛。
+4. **视觉临界项无法自动判定**：本环境无浏览器，矩阵中所有「像素/动画/剪贴板/焦点环可见性」子项均为待人工确认。
+5. **DOM 双端差异**：Node 最小 DOM 断言节点树/属性与 CSS 文本契约，不覆盖浏览器布局、层叠与动画观感。
+
