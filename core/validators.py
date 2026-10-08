@@ -77,6 +77,27 @@ def validate_tags(tags):
     return True, cleaned
 
 
+WRITABLE_STATUSES = ("draft", "private")
+
+
+def validate_note_status_for_write(status):
+    """笔记写入接口（创建/更新）只接受 draft 与 private；
+    public 只能由 POST /notes/<id>/share 进入。"""
+    if status not in WRITABLE_STATUSES:
+        return False, "INVALID_PARAM"
+    return True, None
+
+
+def validate_search_keyword(q):
+    if q is None:
+        return True, None
+    if not isinstance(q, str):
+        return False, "INVALID_PARAM"
+    if len(q) > 100:
+        return False, "CONTENT_TOO_LONG"
+    return True, None
+
+
 def parse_pagination(args, default=10, maximum=50):
     def _int(value, fallback):
         try:

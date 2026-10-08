@@ -128,7 +128,8 @@
 **File:** [phase-4-notes-backend.md](phase-4-notes-backend.md)
 **Goal:** 完成笔记 CRUD、草稿/私密/公开三态、标签绑定、筛选搜索排序分页，以及图片上传接口。
 **Tasks:** 5
-**Status:** Not Started
+**Status:** Done
+**Completion:** √
 
 ### Phase 5: 笔记前端
 **File:** [phase-5-notes-frontend.md](phase-5-notes-frontend.md)

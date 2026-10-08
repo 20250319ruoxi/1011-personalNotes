@@ -31,7 +31,7 @@
 
 **Steps:**
 
-- [ ] 创建 `tests/test_markdown.py`：
+- [x] 创建 `tests/test_markdown.py`：
 
 ```python
 from core.markdown import to_plain_text
@@ -66,7 +66,7 @@ def test_strips_raw_html_tags():
     assert "<script>" not in to_plain_text("<script>alert(1)</script>正文", limit=80)
 ```
 
-- [ ] 创建 `core/markdown.py`：
+- [x] 创建 `core/markdown.py`：
 
 ```python
 import re
@@ -104,7 +104,7 @@ def to_plain_text(md, limit=80):
     return text[:limit]
 ```
 
-- [ ] 在 `core/validators.py` 追加：
+- [x] 在 `core/validators.py` 追加：
 
 ```python
 WRITABLE_STATUSES = ("draft", "private")
@@ -128,7 +128,7 @@ def validate_search_keyword(q):
     return True, None
 ```
 
-- [ ] 创建 `tests/test_notes_dao.py`，覆盖 DAO 层关键行为：
+- [x] 创建 `tests/test_notes_dao.py`，覆盖 DAO 层关键行为：
 
 ```python
 import pytest
@@ -204,7 +204,7 @@ def test_list_returns_summary_source_content(app, alice_id):
         assert to_plain_text(rows[0]["content_md"]) == "小标题 这是摘要正文。"
 ```
 
-- [ ] 运行：
+- [x] 运行：
 
 ```bash
 .venv/Scripts/python.exe -m pytest tests/test_markdown.py tests/test_notes_dao.py -v
@@ -212,7 +212,7 @@ def test_list_returns_summary_source_content(app, alice_id):
 
   - Expected: FAIL（`core.markdown` 与笔记 DAO 尚不存在）
 
-- [ ] 在 `core/db.py` 追加笔记与标签 DAO：
+- [x] 在 `core/db.py` 追加笔记与标签 DAO：
 
 ```python
 def create_note(conn, user_id, title, content_md, status, tags):
@@ -333,7 +333,7 @@ def get_user_tags(conn, user_id):
 
 **Steps:**
 
-- [ ] 创建 `tests/test_notes_api.py`：
+- [x] 创建 `tests/test_notes_api.py`：
 
 ```python
 def test_create_draft(alice):
@@ -448,7 +448,7 @@ def test_already_deleted_returns_not_found(alice):
     assert c.delete(f"/api/notes/{note_id}", headers=headers).get_json()["code"] == "NOT_FOUND"
 ```
 
-- [ ] 运行：
+- [x] 运行：
 
 ```bash
 .venv/Scripts/python.exe -m pytest tests/test_notes_api.py -v
@@ -456,7 +456,7 @@ def test_already_deleted_returns_not_found(alice):
 
   - Expected: FAIL（无 `api.notes` 模块）
 
-- [ ] 创建 `api/notes.py`：
+- [x] 创建 `api/notes.py`：
 
 ```python
 from flask import Blueprint, request
@@ -619,7 +619,7 @@ def delete_note(note_id):
     return ok(None, "已删除")
 ```
 
-- [ ] 运行：
+- [x] 运行：
 
 ```bash
 .venv/Scripts/python.exe -m pytest tests/test_notes_api.py -v
@@ -645,7 +645,7 @@ def delete_note(note_id):
 
 **Steps:**
 
-- [ ] 创建 `tests/test_notes_list.py`：
+- [x] 创建 `tests/test_notes_list.py`：
 
 ```python
 def _seed(c, headers):
@@ -753,7 +753,7 @@ def test_list_requires_login(client):
     assert client.get("/api/notes").status_code == 401
 ```
 
-- [ ] 运行：
+- [x] 运行：
 
 ```bash
 .venv/Scripts/python.exe -m pytest tests/test_notes_list.py -v
@@ -761,7 +761,7 @@ def test_list_requires_login(client):
 
   - Expected: 11 个用例全部 passed（Task 2、Task 1 已实现全部逻辑；本任务用于固化查询语义，若有用例失败则回到 Task 1 修正 DAO）
 
-- [ ] 若 `test_sort_by_created_and_updated` 因同秒创建导致顺序不稳定而失败，在 `create_note` 的 `now_iso()` 之外补一个自增序号不作方案，改为在测试内用 `time.sleep(1.05)` 分隔创建时刻；**不要**改动时间格式（全项目统一秒级 ISO8601）。
+- [x] 若 `test_sort_by_created_and_updated` 因同秒创建导致顺序不稳定而失败，在 `create_note` 的 `now_iso()` 之外补一个自增序号不作方案，改为在测试内用 `time.sleep(1.05)` 分隔创建时刻；**不要**改动时间格式（全项目统一秒级 ISO8601）。
 
 **Security/Boundary Notes:** 列表接口为 `GET`，必须无副作用：不得写入浏览足迹（足迹只由详情与分享页写入，见 Phase 7）。
 
@@ -779,7 +779,7 @@ def test_list_requires_login(client):
 
 **Steps:**
 
-- [ ] 创建 `tests/test_tags_api.py`：
+- [x] 创建 `tests/test_tags_api.py`：
 
 ```python
 def test_tags_counts_only_own_live_notes(alice, bob_raw):
@@ -810,7 +810,7 @@ def test_tags_requires_login(client):
     assert client.get("/api/tags").status_code == 401
 ```
 
-- [ ] 运行：
+- [x] 运行：
 
 ```bash
 .venv/Scripts/python.exe -m pytest tests/test_tags_api.py -v
@@ -818,7 +818,7 @@ def test_tags_requires_login(client):
 
   - Expected: FAIL（无 `api.tags` 模块）
 
-- [ ] 创建 `api/tags.py`：
+- [x] 创建 `api/tags.py`：
 
 ```python
 from flask import Blueprint
@@ -837,7 +837,7 @@ def list_tags():
     return ok({"items": [{"name": r["name"], "count": r["count"]} for r in rows]})
 ```
 
-- [ ] 运行：
+- [x] 运行：
 
 ```bash
 .venv/Scripts/python.exe -m pytest tests/test_tags_api.py -v
@@ -860,7 +860,7 @@ def list_tags():
 
 **Steps:**
 
-- [ ] 创建 `tests/test_uploads_api.py`：
+- [x] 创建 `tests/test_uploads_api.py`：
 
 ```python
 import io
@@ -943,7 +943,7 @@ def test_uploads_are_namespaced_per_user(app, alice):
     assert url.split("/")[-1].startswith("u1-")
 ```
 
-- [ ] 运行：
+- [x] 运行：
 
 ```bash
 .venv/Scripts/python.exe -m pytest tests/test_uploads_api.py -v
@@ -951,7 +951,7 @@ def test_uploads_are_namespaced_per_user(app, alice):
 
   - Expected: FAIL（无 `api.uploads` 模块）
 
-- [ ] 创建 `api/uploads.py`：
+- [x] 创建 `api/uploads.py`：
 
 ```python
 import uuid
@@ -1021,7 +1021,7 @@ def upload_image():
 
   - 注：写入完成后再做一次 `user_usage(upload_dir, user_id) > cfg["USER_UPLOAD_QUOTA"]` 复核（此时统计已包含本次文件），不满足则删除刚写入的文件并返回 `STORAGE_QUOTA_EXCEEDED`；该二次校验用于覆盖并发写入绕过配额的情况。
 
-- [ ] 运行：
+- [x] 运行：
 
 ```bash
 .venv/Scripts/python.exe -m pytest tests/test_uploads_api.py -v
@@ -1029,7 +1029,7 @@ def upload_image():
 
   - Expected: 9 个用例全部 passed
 
-- [ ] 运行全量测试确认无回归：
+- [x] 运行全量测试确认无回归：
 
 ```bash
 .venv/Scripts/python.exe -m pytest tests/ -v
@@ -1049,12 +1049,53 @@ def upload_image():
 
 ## Phase Completion Checklist
 
-- [ ] 全部 5 个任务完成
-- [ ] `.venv/Scripts/python.exe -m pytest tests/ -v` 全部通过（新增 `test_markdown.py`、`test_notes_dao.py`、`test_notes_api.py`、`test_notes_list.py`、`test_tags_api.py`、`test_uploads_api.py`）
-- [ ] 笔记创建/读取/更新/删除/筛选/搜索/排序/分页在接口层全部可用
-- [ ] 用户 B 无法读取、修改、删除用户 A 的任何笔记（返回 `NOT_FOUND`）
-- [ ] `status=public` 无法通过创建或更新接口写入
-- [ ] 列表响应不含 `content_md` 与 `share_token`，只含 `summary`
-- [ ] 上传接口通过白名单、真实解码、体积、配额四类校验
-- [ ] `db/app.db` 中不产生测试残留（测试使用临时库）
-- [ ] 可以进入 Phase 5
+- [x] 全部 5 个任务完成
+- [x] `.venv/Scripts/python.exe -m pytest tests/ -v` 全部通过（新增 `test_markdown.py`、`test_notes_dao.py`、`test_notes_api.py`、`test_notes_list.py`、`test_tags_api.py`、`test_uploads_api.py`）
+- [x] 笔记创建/读取/更新/删除/筛选/搜索/排序/分页在接口层全部可用
+- [x] 用户 B 无法读取、修改、删除用户 A 的任何笔记（返回 `NOT_FOUND`）
+- [x] `status=public` 无法通过创建或更新接口写入
+- [x] 列表响应不含 `content_md` 与 `share_token`，只含 `summary`
+- [x] 上传接口通过白名单、真实解码、体积、配额四类校验
+- [x] `db/app.db` 中不产生测试残留（测试使用临时库）
+- [x] 可以进入 Phase 5
+
+---
+
+## 执行记录（主智能体验证）
+
+- **执行日期**：2026-10-08
+- **验证命令与结果**：`.venv/Scripts/python.exe -m pytest tests/ -q` → **191 passed**
+  （Phase 3 的 146 项 + 本阶段新增 45 项：markdown 4、notes DAO 6、notes API 12、
+  notes list 11、tags 3、uploads 9）。
+- **范围隔离抽查**：`git status --short static tests/manual` → 无改动；本阶段未触碰任何前端文件。
+- **跨阶段边界抽查**：`grep -n "is_share_unlocked\|mark_share_unlocked" api/notes.py` → 无命中，
+  未提前引用 Phase 6 的分享解锁态；`get_note_detail` 中保留了 `# Phase 6 在此追加…` 标记注释。
+- **数据库隔离抽查**：`db/app.db` 时间戳未变（测试全部使用 `tmp_path` 临时库）。
+
+**主智能体补充修正（本阶段验证中发现）**
+
+1. **上传测试污染真实上传目录**：`tests/test_uploads_api.py` 直接写入 `static/uploads/`，每轮运行
+   都会留下 `u1-*.png` / `u1-*.webp` 残留（本次发现 3 个）。这些残留虽被 `.gitignore` 忽略，但会
+   让后续「配额超限」用例跨次耦合，并污染开发者本地的真实上传目录。
+   已新增 `clean_uploads` autouse 夹具：用例前记录既有 `u*-*` 文件集合，用例后删除本次新增的文件。
+   连续运行两次 `tests/test_uploads_api.py` 均 9 passed，且 `static/uploads/` 只剩 `.gitkeep`。
+   未改为临时目录，因为用例需要断言返回的 `/static/uploads/<name>` 可由静态路由取回（200）。
+
+**子智能体的偏差（主智能体已复核接受，均针对阶段文件自身的缺陷）**
+
+1. `tests/test_uploads_api.py` 中 `io.BytesIO(b"这不是图片")` 是非法 Python 字面量
+   （`SyntaxError: bytes can only contain ASCII literal characters`），语法错误不构成有效 RED。
+   已改为 `io.BytesIO("这不是图片".encode("utf-8"))`，等价语义。
+2. `test_upload_too_large` 的上限 2048 字节永远触发不了 413：纯色 200×200 PNG 压缩后仅 592 字节，
+   multipart 请求体 834 字节。已把该用例内的上限改为 512（低于实际请求体），保留原意。
+3. `test_sort_by_created_and_updated` 采纳阶段文件第 764 行预告的既定回退方案，为 `_seed` 增加
+   可选 `delay` 参数并在该用例用 `delay=1.05` 分隔创建时刻，使秒级时间戳严格递增。
+   **未改动时间格式**（仍为全项目统一的秒级 ISO8601）。该用例已重复 5 次确认稳定。
+
+**遗留风险**
+
+1. `test_sort_by_created_and_updated` 依赖 1.05s 睡眠，使该用例约增加 2.1s 运行时间；
+   `test_upload_too_large` 的 512 上限与约 834 字节请求体耦合，改动图片尺寸时需同步调整。
+2. `GET /api/notes` 对非本人笔记的可见性分支尚未实现（Phase 6 补齐），当前非作者一律 `NOT_FOUND`。
+3. Phase 2 遗留的 `:focus-visible` 焦点环对比度（2.85:1 < 3:1）仍待 Phase 8 决策。
+
