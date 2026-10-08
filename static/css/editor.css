@@ -1,1 +1,321 @@
-/* editor.css — 分栏编辑器与实时预览样式（Phase 5 实现）。Phase 1 仅占位，避免 404 影响排查。 */
+/* editor.css — 写笔记 / 编辑笔记：分栏实时预览编辑器（Phase 5）。
+   约束：只消费 base.css 的设计令牌，不硬编码任何色值。 */
+
+/* ==========================================================================
+   外层与纸张容器
+   ========================================================================== */
+
+.editor-wrap {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--sp-6) var(--gutter) var(--sp-12);
+}
+
+.editor-paper {
+  background-color: var(--c-paper-fallback);
+  background-image: url("/static/img/paper.jpg");
+  background-size: cover;
+  background-position: center;
+  border: var(--bd);
+  border-radius: var(--r-2);
+  padding: var(--sp-6);
+  box-shadow: var(--sd-card);
+}
+
+/* ==========================================================================
+   头部：标题输入 + 标签输入 + 操作按钮
+   ========================================================================== */
+
+.editor-head {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+}
+
+.editor-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  padding: 0;
+}
+
+.tag-input-wrap { position: relative; }
+
+.tag-input {
+  min-height: 40px;
+  min-width: 180px;
+  padding: 0 var(--sp-3);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-1);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+}
+
+.tag-suggestions {
+  position: absolute;
+  top: calc(100% + var(--sp-1));
+  left: 0;
+  z-index: 20;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-1);
+  background: var(--c-surface);
+  border: var(--bd);
+  border-radius: var(--r-1);
+  box-shadow: var(--sd-float);
+}
+
+.tag-suggestions:empty { display: none; }
+
+.tag-suggestions button {
+  min-height: 36px;
+  padding: 0 var(--sp-3);
+  border: 0;
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.tag-suggestions button:hover { background: var(--c-page); color: var(--c-link-hover); }
+
+.editor-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* ==========================================================================
+   移动端「编辑 / 预览」切换：桌面隐藏
+   ========================================================================== */
+
+.editor-tabs { display: none; }
+
+/* ==========================================================================
+   分栏：Markdown 源码 / 实时预览
+   ========================================================================== */
+
+.editor-panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin-top: var(--sp-4);
+  border-top: var(--bd);
+}
+
+.pane-source textarea {
+  width: 100%;
+  min-height: 52vh;
+  border: none;
+  background: transparent;
+  resize: none;
+  font-family: ui-monospace,Consolas,monospace;
+  font-size: var(--fs-sm);
+  line-height: 1.8;
+  outline: none;
+  padding-top: var(--sp-4);
+  padding-bottom: var(--sp-4);
+}
+
+.pane-preview {
+  min-height: 52vh;
+  max-height: 78vh;
+  overflow-y: auto;
+  padding-top: var(--sp-4);
+  padding-bottom: var(--sp-4);
+  padding-left: var(--sp-6);
+  border-left: var(--bd);
+}
+
+/* ==========================================================================
+   Markdown 正文排版（预览与详情页共用 .markdown-body）
+   ========================================================================== */
+
+.markdown-body {
+  font-size: var(--fs-base);
+  line-height: var(--lh-reading);
+  color: var(--c-text);
+  word-break: break-word;
+}
+
+.markdown-body h1 { font-size: var(--fs-h2); }
+.markdown-body h2 { font-size: var(--fs-h3); }
+.markdown-body h3 { font-size: var(--fs-base); }
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 { font-size: var(--fs-sm); }
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  font-weight: 600;
+  margin-bottom: var(--sp-3);
+}
+
+.markdown-body p {
+  font-size: var(--fs-base);
+  line-height: var(--lh-reading);
+  margin-bottom: var(--sp-4);
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  margin-bottom: var(--sp-4);
+  padding-left: var(--sp-6);
+  list-style: disc;
+}
+
+.markdown-body ol { list-style: decimal; }
+
+.markdown-body li { margin-bottom: var(--sp-1); }
+
+.markdown-body code {
+  background: var(--c-code-bg);
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-family: ui-monospace,Consolas,monospace;
+  font-size: var(--fs-sm);
+}
+
+.markdown-body pre {
+  background: var(--c-page);
+  padding: var(--sp-4);
+  border-radius: var(--r-1);
+  overflow-x: auto;
+  margin-bottom: var(--sp-4);
+}
+
+.markdown-body pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.markdown-body blockquote {
+  border-left: 3px solid var(--c-accent);
+  padding-left: var(--sp-4);
+  margin-bottom: var(--sp-4);
+  color: var(--c-text-muted-strong);
+}
+
+.markdown-body img {
+  max-width: 100%;
+  border-radius: var(--r-1);
+  margin-bottom: var(--sp-4);
+}
+
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--sp-4);
+}
+
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid var(--c-border);
+  padding: var(--sp-2) var(--sp-3);
+  text-align: left;
+}
+
+.markdown-body a { text-decoration: underline; }
+
+/* 渲染/清洗失败时的纯文本降级块 */
+.md-fallback {
+  background: var(--c-page);
+  padding: var(--sp-4);
+  border-radius: var(--r-1);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: var(--fs-sm);
+}
+
+/* ==========================================================================
+   底部：工具条与状态条
+   ========================================================================== */
+
+.editor-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: var(--bd);
+}
+
+.editor-toolbar { display: flex; align-items: center; gap: var(--sp-3); }
+
+.editor-file { display: none; }
+
+.editor-status {
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+}
+
+/* 未保存的更改：标题前圆点 */
+.editor-title.is-dirty::before {
+  content: "•";
+  color: var(--c-primary-hover);
+  margin-right: var(--sp-1);
+}
+
+/* ==========================================================================
+   响应式：≤768px 取消分栏，改为「编辑 / 预览」切换
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .editor-head {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .editor-head .btn { flex: 1; }
+
+  .editor-tabs {
+    display: flex;
+    gap: 0;
+    margin-top: var(--sp-4);
+    border: var(--bd);
+    border-radius: var(--r-1);
+    overflow: hidden;
+    width: fit-content;
+  }
+
+  .editor-tabs button {
+    min-height: 40px;
+    padding: 0 var(--sp-6);
+    border: 0;
+    background: var(--c-surface);
+    color: var(--c-text);
+    font-size: var(--fs-sm);
+    cursor: pointer;
+  }
+
+  .editor-tabs button + button { border-left: var(--bd); }
+
+  .editor-tabs button.is-active { background: var(--c-accent); }
+
+  .editor-panes { grid-template-columns: 1fr; }
+
+  .pane-preview {
+    border-left: none;
+    padding-left: 0;
+  }
+
+  /* 默认显示源码；切到预览时隐藏源码、显示预览 */
+  .editor-panes .pane-preview { display: none; }
+  .editor-panes.is-showing-preview .pane-source { display: none; }
+  .editor-panes.is-showing-preview .pane-preview { display: block; }
+}

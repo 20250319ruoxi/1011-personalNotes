@@ -1,1 +1,251 @@
-/* notes.css — 笔记列表、卡片、详情页与纸张容器样式（Phase 5 实现）。Phase 1 仅占位，避免 404 影响排查。 */
+/* notes.css — 笔记列表、卡片、详情页样式（Phase 5）。
+   约束：只消费 base.css 的设计令牌，不硬编码任何色值。 */
+
+/* ==========================================================================
+   页面容器
+   ========================================================================== */
+
+.note-page {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--sp-8) var(--gutter) var(--sp-16);
+}
+
+/* ==========================================================================
+   工具条：状态筛选 / 标签下拉 / 搜索 / 排序 / 清除筛选
+   ========================================================================== */
+
+.note-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: center;
+  margin-bottom: var(--sp-6);
+}
+
+/* 分段按钮组：外圈统一圆角，内部按钮无边框，选中项铺强调色 */
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  border: var(--bd);
+  border-radius: var(--r-1);
+  background: var(--c-surface);
+  overflow: hidden;
+}
+
+.segmented button {
+  min-height: 40px;
+  padding: 0 var(--sp-4);
+  border: 0;
+  background: transparent;
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.segmented button + button { border-left: var(--bd); }
+
+.segmented button.is-active { background: var(--c-accent); }
+
+.tag-filter {
+  min-height: 40px;
+  padding: 0 var(--sp-3);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-1);
+  color: var(--c-text);
+}
+
+.note-search {
+  flex: 1;
+  min-width: 200px;
+  max-width: 360px;
+  height: 40px;
+  padding: 0 var(--sp-3);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-1);
+  color: var(--c-text);
+}
+
+.note-search:focus {
+  outline: none;
+  border-color: var(--c-primary-hover);
+  box-shadow: 0 0 0 2px var(--c-accent);
+}
+
+/* ==========================================================================
+   卡片网格与纸张卡片
+   ========================================================================== */
+
+.note-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--sp-6);
+}
+
+.note-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  background-color: var(--c-paper-fallback);
+  background-image: url("/static/img/paper.jpg");
+  background-size: cover;
+  background-position: center;
+  border: var(--bd);
+  border-radius: var(--r-2);
+  padding: var(--sp-6);
+  cursor: pointer;
+  transition: box-shadow .15s, transform .15s;
+}
+
+.note-card:hover {
+  box-shadow: var(--sd-card);
+  transform: translateY(-2px);
+}
+
+.note-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.note-card-title {
+  font-size: var(--fs-h3);
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.note-summary {
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted-strong);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.note-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.tag-chip {
+  font-size: var(--fs-xs);
+  padding: 2px 8px;
+  border: var(--bd);
+  border-radius: 999px;
+  color: var(--c-text-muted-strong);
+}
+
+/* 状态徽标：草稿 / 私密 / 已分享 */
+.badge {
+  font-size: var(--fs-xs);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.badge-draft { background: var(--c-border); color: var(--c-text); }
+.badge-private { background: var(--c-surface); border: 1px solid var(--c-primary); color: var(--c-text); }
+.badge-public { background: var(--c-accent); color: var(--c-text); }
+
+.note-card-foot { margin-top: auto; }
+
+.note-time {
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+}
+
+/* 失效占位（收藏 / 足迹中已不可访问的笔记） */
+.note-card.is-stale {
+  opacity: .7;
+  cursor: default;
+}
+
+.note-card.is-stale .note-card-title {
+  font-size: var(--fs-base);
+  color: var(--c-text-muted-strong);
+}
+
+.note-remove { align-self: flex-start; }
+
+/* ==========================================================================
+   分页
+   ========================================================================== */
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-4);
+  margin-top: var(--sp-8);
+}
+
+.pagination-info,
+.pagination-total {
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted-strong);
+}
+
+/* ==========================================================================
+   详情页：标题 / 元信息 / 正文 / 操作条
+   ========================================================================== */
+
+.detail-title {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  margin-bottom: var(--sp-3);
+}
+
+.detail-meta {
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted-strong);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: center;
+  margin-bottom: var(--sp-6);
+}
+
+/* 正文阅读层：叠加暖白底把纸张纹理降下来，保证长文阅读不疲劳 */
+.detail-body {
+  max-width: var(--reading-max);
+  margin: 0 auto;
+  background-color: var(--c-paper-fallback);
+  background-image: none;
+  color: var(--c-text);
+}
+
+.detail-actions {
+  display: flex;
+  gap: var(--sp-3);
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-4);
+  border-top: var(--bd);
+}
+
+/* ==========================================================================
+   减动效降级：卡片悬停不位移
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .note-card { transition: none; }
+  .note-card:hover { transform: none; }
+}
+
+/* ==========================================================================
+   响应式：≤768px 单列、搜索框占满整行
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .note-grid { grid-template-columns: 1fr; }
+
+  .note-search { flex: 1 1 100%; max-width: none; }
+
+  .detail-actions { flex-wrap: wrap; }
+  .detail-actions .btn { flex: 1 1 45%; }
+}

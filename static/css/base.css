@@ -30,6 +30,9 @@
   --c-on-image:       #FFFFFF;
   --c-on-image-muted: rgba(255, 255, 255, .88);
 
+  /* Markdown 行内代码底色（editor.css / notes.css 使用，避免在页面 css 硬编码色值） */
+  --c-code-bg:        rgba(195, 164, 123, .16);
+
   /* 字体 */
   --font-sans: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   --fs-xs: 12px; --fs-sm: 14px; --fs-base: 16px;

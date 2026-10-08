@@ -26,10 +26,20 @@ function match(pathname) {
 }
 
 export async function navigate(path, { replace = false } = {}) {
+  // 脏标记拦截：编辑器注入的 dirtyGuard 返回 false 表示用户选择留在原页
+  if (store.dirty && !(await store.canLeave())) return;
+  store.setDirty(false);
   if (replace) history.replaceState({}, '', path);
   else history.pushState({}, '', path);
   await render();
 }
+
+// 浏览器级拦截：有未保存更改时提示确认关闭
+window.addEventListener('beforeunload', (event) => {
+  if (!store.dirty) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
 
 async function bootstrap() {
   try {
@@ -86,6 +96,29 @@ registerRoute('/about', async (root) => {
 // 登录 / 注册页（Phase 3）
 registerRoute('/login', async (root) => (await import('./auth.js')).renderLogin(root));
 registerRoute('/register', async (root) => (await import('./auth.js')).renderRegister(root));
+
+// 笔记列表页（Phase 5）
+registerRoute('/notes', async (root, params) => {
+  const { renderNoteList } = await import('./notes.js');
+  renderNoteList(root, params);
+}, { requiresAuth: true });
+
+// 写笔记 / 编辑笔记（Phase 5）
+registerRoute('/notes/new', async (root, params) => {
+  const { renderEditor } = await import('./editor.js');
+  renderEditor(root, params);
+}, { requiresAuth: true });
+
+registerRoute('/notes/:id/edit', async (root, params) => {
+  const { renderEditor } = await import('./editor.js');
+  renderEditor(root, params);
+}, { requiresAuth: true });
+
+// 笔记详情页（Phase 5）。注意：必须排在 /notes/new 之后，避免 :id 吃掉固定路径。
+registerRoute('/notes/:id', async (root, params) => {
+  const { renderNoteDetail } = await import('./notes.js');
+  renderNoteDetail(root, params);
+}, { requiresAuth: true });
 
 // 登录态变化时只重绘顶栏，避免整页重渲染
 store.onChange(() => renderHeader(store.user, location.pathname));

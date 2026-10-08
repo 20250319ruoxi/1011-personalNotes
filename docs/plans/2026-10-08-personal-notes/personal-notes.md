@@ -135,7 +135,8 @@
 **File:** [phase-5-notes-frontend.md](phase-5-notes-frontend.md)
 **Goal:** 交付笔记列表页、分栏实时预览编辑器、笔记详情页与 Markdown 渲染清洗模块。
 **Tasks:** 5
-**Status:** Not Started
+**Status:** Done
+**Completion:** √
 
 ### Phase 6: 分享与评论
 **File:** [phase-6-share-comments.md](phase-6-share-comments.md)

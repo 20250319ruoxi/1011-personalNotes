@@ -404,3 +404,143 @@ export function escapeHtml(text) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
+/* ==========================================================================
+   笔记卡片：笔记列表、我的笔记、收藏、足迹共用（Phase 5 Task 2）
+   状态徽标：draft → 草稿、private → 私密、public → 已分享
+   ========================================================================== */
+
+const STATUS_BADGE = { draft: '草稿', private: '私密', public: '已分享' };
+
+export function noteCard(note, { onOpen, onRemove } = {}) {
+  const data = note || {};
+  const card = document.createElement('article');
+  card.className = 'note-card paper';
+
+  // 失效占位（收藏 / 足迹里已不可访问的笔记）：只显示占位与「移除」
+  if (data.available === false) {
+    card.classList.add('is-stale');
+    const staleTitle = document.createElement('h3');
+    staleTitle.className = 'note-card-title';
+    staleTitle.textContent = '内容已失效';
+    card.appendChild(staleTitle);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn btn-ghost note-remove';
+    removeBtn.textContent = '移除';
+    removeBtn.addEventListener('click', () => {
+      if (typeof onRemove === 'function') onRemove(data);
+    });
+    card.appendChild(removeBtn);
+    return card;
+  }
+
+  card.setAttribute('tabindex', '0');
+  card.setAttribute('role', 'link');
+
+  const head = document.createElement('div');
+  head.className = 'note-card-head';
+
+  const title = document.createElement('h3');
+  title.className = 'note-card-title';
+  title.textContent = data.title || '无标题';
+  head.appendChild(title);
+
+  const status = STATUS_BADGE[data.status] ? data.status : 'draft';
+  const badge = document.createElement('span');
+  badge.className = `badge badge-${status}`;
+  badge.textContent = STATUS_BADGE[status];
+  head.appendChild(badge);
+
+  card.appendChild(head);
+
+  const summary = document.createElement('p');
+  summary.className = 'note-summary';
+  summary.textContent = data.summary || '（空白笔记）';
+  card.appendChild(summary);
+
+  const tags = Array.isArray(data.tags) ? data.tags : [];
+  if (tags.length) {
+    const list = document.createElement('ul');
+    list.className = 'note-tags';
+    tags.forEach((name) => {
+      const item = document.createElement('li');
+      item.className = 'tag-chip';
+      item.textContent = name;
+      list.appendChild(item);
+    });
+    card.appendChild(list);
+  }
+
+  const foot = document.createElement('div');
+  foot.className = 'note-card-foot';
+  const time = document.createElement('time');
+  time.className = 'note-time';
+  time.textContent = formatDate(data.updated_at);
+  foot.appendChild(time);
+  card.appendChild(foot);
+
+  card.addEventListener('click', () => {
+    if (typeof onOpen === 'function') onOpen(data);
+  });
+  card.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    if (typeof onOpen === 'function') onOpen(data);
+  });
+
+  return card;
+}
+
+/* ==========================================================================
+   分页控件（Phase 5 Task 2）：第 X / Y 页 + 共 N 篇，边界禁用
+   ========================================================================== */
+
+export function pagination({ page = 1, pageSize = 10, total = 0, onChange } = {}) {
+  const size = pageSize > 0 ? pageSize : 10;
+  const count = total > 0 ? total : 0;
+  const pages = Math.max(1, Math.ceil(count / size));
+  const current = Math.min(Math.max(1, page), pages);
+
+  const wrap = document.createElement('nav');
+  wrap.className = 'pagination';
+  wrap.setAttribute('aria-label', '分页');
+
+  const prev = document.createElement('button');
+  prev.type = 'button';
+  prev.className = 'btn btn-ghost pagination-prev';
+  prev.textContent = '上一页';
+  const prevDisabled = current <= 1;
+  if (prevDisabled) {
+    prev.disabled = true;
+    prev.setAttribute('disabled', '');
+  }
+  prev.addEventListener('click', () => {
+    if (!prevDisabled && typeof onChange === 'function') onChange(current - 1);
+  });
+
+  const info = document.createElement('span');
+  info.className = 'pagination-info';
+  info.textContent = `第 ${current} / ${pages} 页`;
+
+  const totalEl = document.createElement('span');
+  totalEl.className = 'pagination-total';
+  totalEl.textContent = `共 ${count} 篇`;
+
+  const next = document.createElement('button');
+  next.type = 'button';
+  next.className = 'btn btn-ghost pagination-next';
+  next.textContent = '下一页';
+  const nextDisabled = current >= pages;
+  if (nextDisabled) {
+    next.disabled = true;
+    next.setAttribute('disabled', '');
+  }
+  next.addEventListener('click', () => {
+    if (!nextDisabled && typeof onChange === 'function') onChange(current + 1);
+  });
+
+  wrap.append(prev, info, totalEl, next);
+  return wrap;
+}

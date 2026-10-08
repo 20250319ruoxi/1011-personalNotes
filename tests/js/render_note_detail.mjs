@@ -1,0 +1,232 @@
+/* render_note_detail.mjs — Phase 5 Task 4：笔记详情页渲染契约 harness。
+ *
+ * 复用 tests/js/dom-shim.mjs 最小 DOM 双端，在 Node 中真实调用 static/js/notes.js 的
+ * renderNoteDetail，断言标题/元信息/正文/操作条、删除二次确认与不存在空态。
+ *
+ * 用法：node tests/js/render_note_detail.mjs  →  stdout 打印一行 JSON
+ */
+import { installDom, serialize } from './dom-shim.mjs';
+
+const dom = installDom();
+const { document, window, location, historyCalls } = dom;
+
+const headerEl = document.createElement('header');
+headerEl.id = 'app-header';
+const appEl = document.createElement('main');
+appEl.id = 'app';
+const toastRoot = document.createElement('div');
+toastRoot.id = 'toast-root';
+const dialogRoot = document.createElement('div');
+dialogRoot.id = 'dialog-root';
+document.body.append(headerEl, appEl, toastRoot, dialogRoot);
+
+const tick = (ms = 20) => new Promise((resolve) => setTimeout(resolve, ms));
+const flush = async () => { await tick(); await tick(); await tick(); };
+
+const errors = {};
+const safe = (key, fn, fallback = null) => {
+  try { return fn(); } catch (err) { errors[key] = String(err.message).split('\n')[0]; return fallback; }
+};
+
+/* ---- 渲染桩件 ---- */
+window.marked = { parse: (source) => `MD[${source}]` };
+window.DOMPurify = { addHook() {}, sanitize: (html) => `SAN${html}` };
+
+const CONTENT = '# 标题\n\n一些内容';
+const NOTE = {
+  id: 11, title: '我的第一篇', status: 'private', tags: ['生活', '随笔'],
+  content_md: CONTENT, created_at: '2020-01-01T00:00:00Z',
+  updated_at: '2020-01-02T03:04:05Z', share_token: 'tok', has_share_password: false,
+};
+
+let mode = 'ok';            // ok | notfound
+let note = { ...NOTE };
+let deleteFails = false;
+const fetchCalls = [];
+
+globalThis.fetch = async (path, opts = {}) => {
+  const url = String(path);
+  fetchCalls.push({ path: url, method: opts.method || 'GET' });
+  const okBody = (data) => ({ json: async () => ({ code: 'OK', message: '操作成功', data }) });
+  const errBody = (code, message) => ({ json: async () => ({ code, message, data: null }) });
+
+  if (url.startsWith('/api/auth/me')) {
+    return okBody({ user: { id: 1, username: 'alice' }, csrf_token: 'csrf-1' });
+  }
+  if (opts.method === 'DELETE') {
+    if (deleteFails) return errBody('NOT_FOUND', '请求的内容不存在');
+    return okBody(null);
+  }
+  if (url.startsWith('/api/notes/')) {
+    if (mode === 'notfound') return errBody('NOT_FOUND', '请求的内容不存在');
+    return okBody({ note: { ...note } });
+  }
+  if (url.startsWith('/api/tags')) return okBody({ items: [] });
+  return okBody(null);
+};
+
+const { store } = await import('../../static/js/store.js');
+const { renderMarkdown } = await import('../../static/js/markdown.js');
+const notesModule = await import('../../static/js/notes.js')
+  .catch((err) => ({ __importError: String(err.message).split('\n')[0] }));
+if (notesModule.__importError) errors.importNotes = notesModule.__importError;
+const { renderNoteDetail } = notesModule;
+await import('../../static/js/router.js');
+
+store.setUser({ id: 1, username: 'alice' }, 'csrf-1');
+
+const all = (root, sel) => root.querySelectorAll(sel);
+const field = (root, sel) => root.querySelector(sel);
+const btnByText = (root, text) =>
+  all(root, 'button').find((b) => b.textContent.trim() === text) || null;
+const lastToast = () => (toastRoot.children.length
+  ? toastRoot.children[toastRoot.children.length - 1].textContent : null);
+
+const render = async (params, overrides) => {
+  location.pathname = `/notes/${params.id}`;
+  location.search = '';
+  appEl.innerHTML = '';
+  dialogRoot.innerHTML = '';
+  toastRoot.innerHTML = '';
+  historyCalls.length = 0;
+  fetchCalls.length = 0;
+  mode = 'ok';
+  deleteFails = false;
+  note = { ...NOTE, ...(overrides || {}) };
+  const loadingSkeletons = (() => {
+    safe('renderNoteDetail', () => renderNoteDetail(appEl, params));
+    return all(appEl, '.skeleton').length;
+  })();
+  await flush();
+  return loadingSkeletons;
+};
+
+/* ==========================================================================
+   A. 结构：标题 / 元信息 / 正文 / 操作条
+   ========================================================================== */
+const detail = {};
+detail.exportIsFunction = typeof renderNoteDetail === 'function';
+detail.loadingSkeletons = await render({ id: '11' });
+safe('detail', () => {
+  const article = field(appEl, '.detail-paper');
+  detail.html = article ? serialize(article) : null;
+  detail.paperClass = article ? article.classList.contains('paper') : false;
+
+  const title = field(appEl, '.detail-title');
+  detail.title = title ? title.textContent : null;
+
+  const meta = field(appEl, '.detail-meta');
+  detail.metaText = meta ? meta.textContent : null;
+  const badge = field(appEl, '.badge');
+  detail.badgeText = badge ? badge.textContent : null;
+  detail.badgeClass = badge ? badge.className : null;
+  detail.tags = all(appEl, '.tag-chip').map((el) => el.textContent);
+  detail.lengthText = field(appEl, '.detail-length') ? field(appEl, '.detail-length').textContent : null;
+  detail.timeText = field(appEl, '.detail-time') ? field(appEl, '.detail-time').textContent : null;
+
+  const body = field(appEl, '.detail-body');
+  detail.bodyHtml = body ? body.innerHTML : null;
+  detail.bodyExpected = renderMarkdown(CONTENT);
+  detail.bodyHasMarkdownClass = field(appEl, '.detail-body')
+    ? field(appEl, '.detail-body').classList.contains('markdown-body') : false;
+
+  const actions = field(appEl, '.detail-actions');
+  detail.actionTexts = all(actions, 'button').map((b) => b.textContent.trim());
+  detail.actionClasses = all(actions, 'button').map((b) => b.className);
+  detail.hasShareButton = all(appEl, 'button').some((b) => b.textContent.includes('分享'));
+  detail.hasFavoriteButton = all(appEl, 'button').some((b) => b.textContent.includes('收藏'));
+});
+
+/* 空标题 / 空正文 */
+await render({ id: '11' }, { title: '', content_md: '' });
+const empties = {};
+safe('empties', () => {
+  empties.title = field(appEl, '.detail-title').textContent;
+  const body = field(appEl, '.detail-body');
+  empties.bodyText = body ? body.textContent : null;
+  empties.bodyHtml = body ? body.innerHTML : null;
+});
+
+/* ==========================================================================
+   B. 操作：编辑 → /notes/<id>/edit
+   ========================================================================== */
+const editAction = {};
+await render({ id: '11' });
+safe('editAction', () => {
+  historyCalls.length = 0;
+  btnByText(appEl, '编辑').click();
+});
+await flush();
+editAction.navUrl = historyCalls.length ? historyCalls[historyCalls.length - 1].url : null;
+
+/* ==========================================================================
+   C. 删除：二次确认文案 → 取消不发请求 → 确认后删除并回列表
+   ========================================================================== */
+const remove = {};
+await render({ id: '11' });
+safe('removeOpen', () => { btnByText(appEl, '删除').click(); });
+await flush();
+safe('removeDialog', () => {
+  const dialog = dialogRoot.querySelector('.dialog');
+  remove.dialogTitle = dialog ? dialog.querySelector('.dialog-title').textContent : null;
+  remove.dialogMessage = dialog ? dialog.querySelector('.dialog-message').textContent : null;
+  remove.role = dialog ? dialog.getAttribute('role') : null;
+  remove.ariaModal = dialog ? dialog.getAttribute('aria-modal') : null;
+  remove.confirmText = dialog
+    ? (all(dialog, 'button').find((b) => b.textContent.trim() === '确定删除') || {}).textContent : null;
+  remove.confirmClass = dialog
+    ? (all(dialog, 'button').find((b) => b.textContent.trim() === '确定删除') || {}).className : null;
+  remove.cancelText = dialog
+    ? (all(dialog, 'button').find((b) => b.textContent.trim() === '取消') || {}).textContent : null;
+  const cancel = dialog ? all(dialog, 'button').find((b) => b.textContent.trim() === '取消') : null;
+  if (cancel) cancel.click();
+});
+await flush();
+remove.deleteCallsAfterCancel = fetchCalls.filter((c) => c.method === 'DELETE').length;
+
+safe('removeReopen', () => { btnByText(appEl, '删除').click(); });
+await flush();
+safe('removeConfirm', () => {
+  const dialog = dialogRoot.querySelector('.dialog');
+  const confirm = dialog
+    ? all(dialog, 'button').find((b) => b.textContent.trim() === '确定删除') : null;
+  if (confirm) confirm.click();
+});
+await flush();
+safe('removeConfirmed', () => {
+  const del = fetchCalls.find((c) => c.method === 'DELETE');
+  remove.deletePath = del ? del.path : null;
+  remove.toast = lastToast();
+  remove.navUrl = historyCalls.length ? historyCalls[historyCalls.length - 1].url : null;
+}, null);
+
+/* ==========================================================================
+   D. 不存在 → 空态
+   ========================================================================== */
+const missing = {};
+location.pathname = '/notes/404';
+location.search = '';
+appEl.innerHTML = '';
+dialogRoot.innerHTML = '';
+mode = 'notfound';
+safe('missingRender', () => renderNoteDetail(appEl, { id: '404' }));
+await flush();
+safe('missing', () => {
+  const box = field(appEl, '.empty-state');
+  missing.title = box ? box.querySelector('h2').textContent : null;
+  const btn = box ? box.querySelector('button') : null;
+  missing.actionText = btn ? btn.textContent : null;
+  historyCalls.length = 0;
+  if (btn) btn.click();
+});
+await flush();
+missing.navUrl = historyCalls.length ? historyCalls[historyCalls.length - 1].url : null;
+
+process.stdout.write(JSON.stringify({
+  errors,
+  detail,
+  empties,
+  editAction,
+  remove,
+  missing,
+}) + '\n');

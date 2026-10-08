@@ -83,6 +83,10 @@ export class Element {
     this._rawHtml = value == null ? '' : String(value);
   }
 
+  /* outerHTML：与浏览器一致地返回「自身」的序列化（含标签与属性）。
+     Phase 5 的 markdown.js 降级分支用 pre.outerHTML 返回 <pre> 纯文本，故需要它。 */
+  get outerHTML() { return serialize(this); }
+
   /* ---- 树操作 ---- */
   appendChild(child) {
     child.parentNode = this;

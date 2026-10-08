@@ -151,3 +151,97 @@
 2. **`redirect` 白名单为「单斜杠开头且非 `//`」**：可放行 `/notes?page=2` 之类站内带查询路径；对 `/\evil`、`javascript:` 等以非 `/` 开头者一律回退 `/me`（`javascript:` 不以 `/` 开头 → 回退），已由测试覆盖。
 3. **原地改密不强制下线**：改密后当前会话仍有效（下次登录须用新密码），为计划记录的有意取舍，需在 Phase 8 如需强制重登时追加。
 4. **DOM 双端差异**：Node 最小 DOM 断言节点树/属性，不覆盖浏览器布局、层叠、焦点环与动画观感。
+
+---
+
+## Phase 5 · 笔记前端
+
+> 环境说明：本执行环境（Windows 11 / Git Bash）**没有可用浏览器，也没有 jsdom**，无法点击、截图或使用 DevTools。
+> 凡依赖像素渲染、布局结果、动画观感、焦点环可见性的检查点，一律标注为
+> 「**待人工确认（本环境无浏览器）**」，**不视为已通过**。
+> 替代验证路径（已执行并给出证据）：
+> 1. `tests/js/render_notes.mjs`、`tests/js/render_note_detail.mjs`、`tests/js/render_editor.mjs`
+>    （复用 `tests/js/dom-shim.mjs` 最小 DOM 双端）真实调用 `static/js/notes.js` 的
+>    `renderNoteList` / `renderNoteGrid` / `renderNoteDetail`、`static/js/editor.js` 的
+>    `renderEditor`、`ui.js` 的 `noteCard` / `pagination`，断言标记、文案、ARIA 与交互落点；
+> 2. `tests/test_notes_frontend.py`、`tests/test_editor_frontend.py` 用字节级 CSS 契约断言
+>    `notes.css` / `editor.css` 的断点、尺寸与令牌接线；
+> 3. `tests/test_markdown_frontend.py` 断言 Markdown 清洗配置、降级路径与「单一 HTML 出口」不变式。
+
+| # | 路由 | 视口 | 状态 | 检查点 | 结果 |
+|---|------|------|------|--------|------|
+| 1 | `/notes` | 1440×900 | 有数据 | 工具条四项控件齐备；卡片网格自动填充；卡片为纸张质感 | 自动断言通过：`test_toolbar_status_filter_buttons`（全部/草稿/私密/已分享 四态按钮 + `aria-pressed`）、`test_toolbar_tag_select_and_search_input`（「全部标签」首项 + 占位「搜索标题或正文…」）、`test_toolbar_sort_buttons`、`test_note_grid_auto_fill`（`repeat(auto-fill, minmax(280px, 1fr))`）、`test_note_card_paper_styles`（paper.jpg + 兜底色 + 12px 圆角 + `var(--sp-6)` 内边距）；**纸张质感与网格密度的像素观感：待人工确认（本环境无浏览器）** |
+| 2 | `/notes` | 1440×900 | 空态 | 显示「还没有笔记，去写下第一篇吧」与「写第一篇笔记」按钮 | 自动断言通过：`test_empty_state_without_filters`（文案逐字、按钮文案、点击跳 `/notes/new`、不渲染网格）；**观感：待人工确认（本环境无浏览器）** |
+| 3 | `/notes` | 1440×900 | 搜索无结果 | 显示「没有找到符合条件的笔记」与「清除筛选」 | 自动断言通过：`test_empty_state_with_filters`（文案逐字、「清除筛选」点击回 `/notes`）；**观感：待人工确认（本环境无浏览器）** |
+| 4 | `/notes` | 1440×900 | 加载中 | 显示 6 个骨架卡片 | 自动断言通过：`test_loading_shows_six_skeletons`（`.skeleton` 恰 6 个，数据返回后骨架清零）；**闪烁动画观感：待人工确认（本环境无浏览器）** |
+| 5 | `/notes` | 375×812 | 有数据 | 工具条换行、搜索框整宽、卡片单列、无横向滚动 | 自动断言通过：`test_notes_css_mobile_breakpoint`（≤768px `.note-grid` 单列、`.note-search` `flex:1 1 100%` 且 `max-width:none`）、`test_note_toolbar_layout`（`flex-wrap:wrap`）；「无横向滚动」是布局结果：**待人工确认（本环境无浏览器）** |
+| 6 | `/notes/new` | 1440×900 | 默认 | 标题输入无边框大字号；左右分栏等比；纸张容器 | 自动断言通过：`test_editor_new_mode_structure`（占位「请输入标题」、`maxlength=200`）、`test_editor_head_and_title`（`border:none` / `var(--fs-h2)` / `width:100%`）、`test_editor_wrap_and_paper`（纸底图 + 12px 圆角）、`test_editor_panes_split`（`1fr 1fr` + 预览左边框）；**像素观感：待人工确认（本环境无浏览器）** |
+| 7 | `/notes/new` | 1440×900 | 输入中 | 右侧渲染结果与左侧一致；代码块有底色与横向滚动 | 自动断言通过：`test_preview_is_debounced_and_routed_through_render_markdown`（预览内容 === `renderMarkdown()` 输出、120ms 内不更新、原文不直接注入）、`test_markdown_body_typography`（`code` 底色 `var(--c-code-bg)`、`pre` `overflow-x:auto` + `var(--c-page)` 底）；**观感：待人工确认（本环境无浏览器）** |
+| 8 | `/notes/new` | 1440×900 | 脏标记 | 改动后底部显示「未保存的更改」；点导航弹确认弹窗 | 自动断言通过：`test_status_count_and_dirty_marker`（改动后 `未保存的更改` + 标题圆点）、`test_navigate_is_blocked_while_dirty_and_clears_flag`（取消不跳转、离开后清标记）、`test_beforeunload_guards_only_when_dirty`；**弹窗动画与圆点观感：待人工确认（本环境无浏览器）** |
+| 9 | `/notes/new` | 375×812 | 默认 | 出现「编辑 / 预览」切换，默认显示编辑 | 自动断言通过：`test_editor_tabs_hidden_on_desktop_visible_on_mobile`（桌面 `display:none`、≤768px `display:flex`）、`test_mobile_pane_toggle`（默认 `is-showing-source`，点击切到 `is-showing-preview` 且 `aria-pressed` 同步）；**实际布局观感：待人工确认（本环境无浏览器）** |
+| 10 | `/notes/:id` | 1440×900 | 有数据 | 标题、元信息、纸张正文、操作条；正文宽度 720px 居中 | 自动断言通过：`test_detail_structure_and_meta`（标题/徽标/时间/`共 N 字`/标签）、`test_detail_body_is_rendered_markdown`、`test_detail_actions_only_edit_and_delete`、`test_detail_css`（`.detail-body` `max-width:var(--reading-max)`（720px）+ `margin:0 auto`）；**像素观感：待人工确认（本环境无浏览器）** |
+| 11 | `/notes/:id` | 1440×900 | 删除确认 | 弹窗文案「确定要删除这篇笔记吗？删除后无法恢复。」 | 自动断言通过：`test_detail_delete_confirmation_copy`（标题「删除笔记」、正文逐字、按钮「取消 / 确定删除」、取消后零删除请求）、`test_detail_delete_confirmed_returns_to_list`（DELETE → toast「已删除」→ 回 `/notes`）；**弹窗观感：待人工确认（本环境无浏览器）** |
+| 12 | `/notes/:id` | 1440×900 | 不存在 | 显示「笔记不存在或已被删除」与返回按钮 | 自动断言通过：`test_detail_missing_note_shows_empty_state`（文案逐字 + 「返回笔记列表」→ `/notes`）；**观感：待人工确认（本环境无浏览器）** |
+| 13 | `/notes/new` | 键盘 | 默认 | Tab 依次可达标题、标签、两个按钮、图片按钮、正文 | 自动断言通过：`test_editor_interactive_elements_are_reachable_in_dom_order`（DOM 顺序：标题 → 标签 → 存草稿 → 发布 → 编辑/预览 → 正文 → 插入图片 → 隐藏文件框）、`test_editor_tabs_hidden_on_desktop_visible_on_mobile`（桌面上「编辑/预览」`display:none`，不在 Tab 序列内）。计划要求图片按钮位于编辑器底部工具条，故桌面实际 Tab 序列为「标题 → 标签 → 存草稿 → 发布 → 正文 → 插入图片」，与清单文字顺序（图片按钮在正文之前）不同源；**焦点环可见性与真实 Tab 走查：待人工确认（本环境无浏览器）** |
+| 14 | `/notes` + `/notes/new` | 1440×900 | 减动效 | 模拟 `prefers-reduced-motion` 后卡片无位移过渡 | 自动断言通过：`test_note_card_hover_and_reduced_motion`（`@media (prefers-reduced-motion: reduce)` 下 `.note-card:hover { transform:none }` 且 `transition:none`）；`base.css` 全局把 `animation-duration` / `transition-duration` 压到 `.01ms`；**DevTools 模拟实测：待人工确认（本环境无浏览器）** |
+
+### Phase 5 · 6 条 XSS 样例结论
+
+`tests/manual/xss-fixtures.md` 的 6 条注入样例（`<script>`、`<img onerror>`、`javascript:` 链接、
+`<iframe>`、外链 `onclick`、`<style>`）**未在真实浏览器中执行**，逐条结果均为
+「**待人工确认（本环境无浏览器）**」。
+
+已执行的三条可执行替代验证（见 `tests/test_markdown_frontend.py`，全部通过）：
+
+| 验证 | 结论 |
+|------|------|
+| 降级路径安全（无 DOMPurify / 无 marked，6 条载荷逐条） | 输出只有 `<pre>` 自身两个标签，正文全部转义，危险串不处于标签或属性语境 |
+| 清洗器配置断言（桩件捕获真实传入的 sanitize 配置并实际调用 hook） | 禁 `script/iframe/style/form/object/embed/link/meta` 与 `style/srcset/formaction`，`ALLOW_DATA_ATTR:false`，外链补 `target="_blank"` + `rel="noopener noreferrer"`，hook 只注册一次 |
+| 单一 HTML 出口不变式（扫描 `static/js/**` 的 `innerHTML`） | 用户内容只经 `markdown.js`（`renderMarkdown`）注入：`editor.js:166`、`editor.js:315`、`notes.js:303`；另有 `home.js:46`（静态 SVG 常量，已豁免）与 `router.js` 的清空/静态字面量 |
+
+**「保存后刷新详情页仍被清洗」结论：待人工确认（本环境无浏览器）** ——
+自动侧只能证明「详情页正文只经 `renderMarkdown(note.content_md)` 渲染」（`test_detail_body_is_rendered_markdown`），
+无法证明真实 DOMPurify 对已存储内容的最终清洗结果。
+
+### 证据与命令（Phase 5）
+
+| 命令 | 结果 |
+|------|------|
+| `.venv/Scripts/python.exe -m pytest tests/ -q` | **全部通过**（详见本阶段执行报告；含本阶段新增 3 个测试文件） |
+| `node tests/js/render_notes.mjs` | `errors: {}`；输出工具条/卡片/分页/空态/筛选/防抖/失效占位/守卫 |
+| `node tests/js/render_note_detail.mjs` | `errors: {}`；输出详情结构、空态、编辑/删除流程 |
+| `node tests/js/render_editor.mjs` | `errors: {}`；输出编辑器结构、预览、标签、保存、发布、失败、快捷键、插图、切换、滚动同步 |
+| `node tests/js/render_markdown.mjs` | `errors: {}`；输出降级输出、清洗配置、hook 行为、纯文本摘要 |
+| `node --check static/js/{markdown,notes,editor,ui,router,store}.js` | 语法通过 |
+
+代码定位：唯一 HTML 出口 `static/js/markdown.js renderMarkdown()`；列表/详情 `static/js/notes.js`；
+编辑器 `static/js/editor.js`；卡片与分页 `static/js/ui.js noteCard()/pagination()`；
+脏标记 `static/js/store.js` + `static/js/router.js navigate()/beforeunload`；
+路由注册 `static/js/router.js`（`/notes`、`/notes/new`、`/notes/:id/edit`、`/notes/:id`）。
+
+### 待人工确认的截图清单（本环境无浏览器，未采集）
+
+- `phase5-notes-1440x900.png`（行 1）
+- `phase5-notes-empty-1440x900.png`（行 2）
+- `phase5-notes-noresult-1440x900.png`（行 3）
+- `phase5-notes-loading-1440x900.png`（行 4）
+- `phase5-notes-375x812.png`（行 5）
+- `phase5-editor-1440x900.png`（行 6、7）
+- `phase5-editor-dirty-1440x900.png`（行 8）
+- `phase5-editor-375x812.png`（行 9）
+- `phase5-detail-1440x900.png`（行 10）
+- `phase5-detail-delete-1440x900.png`（行 11）
+- `phase5-detail-missing-1440x900.png`（行 12）
+- 键盘走查与 reduced-motion 无截图，按行 13、14 逐项手工确认
+
+### Phase 5 遗留风险
+
+1. **Markdown 清洗未经真实浏览器验证**：本环境无浏览器、无 jsdom，DOMPurify 无法运行。
+   已验证清洗**配置**、降级兜底与单一 HTML 出口，但具体版本的清洗结果与「存储后仍安全」需人工复核。
+2. **编辑器 Ctrl+S 的作用域**：快捷键绑定在 `document` 上，但仅在编辑器仍挂载时生效
+   （通过 `activeEditor.wrap.parentNode` 判定）；焦点不在编辑器内时浏览器仍可能弹出保存对话框。
+3. **标签上限静默忽略**：第 6 个标签被忽略且不提示（计划未规定文案，未新增中文提示）。
+4. **详情页正文阅读层**：`.detail-body` 用 `background-color: var(--c-paper-fallback)` + 去除纸张底图
+   来降低纹理干扰，属「半透明暖白层」的等效实现（未引入新色值令牌），观感需人工确认。
+5. **DOM 双端差异**：Node 最小 DOM 断言节点树/属性与 CSS 文本契约，不覆盖浏览器布局、层叠、
+   焦点环可见性与动画观感。
