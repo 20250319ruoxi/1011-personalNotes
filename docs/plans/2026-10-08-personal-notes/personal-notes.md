@@ -149,7 +149,8 @@
 **File:** [phase-7-profile.md](phase-7-profile.md)
 **Goal:** 完成收藏与浏览足迹的前后端，并把个人主页四个 Tab 组装完成。
 **Tasks:** 4
-**Status:** Not Started
+**Status:** Done
+**Completion:** √
 
 ### Phase 8: 安全加固与全量验收
 **File:** [phase-8-hardening.md](phase-8-hardening.md)

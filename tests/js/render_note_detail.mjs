@@ -22,6 +22,10 @@ document.body.append(headerEl, appEl, toastRoot, dialogRoot);
 
 const tick = (ms = 20) => new Promise((resolve) => setTimeout(resolve, ms));
 const flush = async () => { await tick(); await tick(); await tick(); };
+/* 收藏按钮的状态查询是「详情 → 收藏列表」两级异步，需要更多轮 tick */
+const flushDeep = async () => {
+  for (let i = 0; i < 6; i += 1) await tick();
+};
 
 const errors = {};
 const safe = (key, fn, fallback = null) => {
@@ -42,16 +46,30 @@ const NOTE = {
 let mode = 'ok';            // ok | notfound
 let note = { ...NOTE };
 let deleteFails = false;
+let favoritesMode = 'empty';      // empty | has-note（收藏列表是否已含当前笔记）
+let favoritePost = 'ok';          // ok | already（POST /api/favorites 的返回）
 const fetchCalls = [];
 
 globalThis.fetch = async (path, opts = {}) => {
   const url = String(path);
-  fetchCalls.push({ path: url, method: opts.method || 'GET' });
+  fetchCalls.push({ path: url, method: opts.method || 'GET', body: opts.body || null });
   const okBody = (data) => ({ json: async () => ({ code: 'OK', message: '操作成功', data }) });
   const errBody = (code, message) => ({ json: async () => ({ code, message, data: null }) });
 
   if (url.startsWith('/api/auth/me')) {
     return okBody({ user: { id: 1, username: 'alice' }, csrf_token: 'csrf-1' });
+  }
+  if (url.startsWith('/api/favorites')) {
+    if (opts.method === 'POST') {
+      if (favoritePost === 'already') return errBody('ALREADY_FAVORITED', '已收藏过该笔记');
+      return okBody(null, '已收藏');
+    }
+    if (opts.method === 'DELETE') return okBody(null, '已取消收藏');
+    const hit = favoritesMode === 'has-note';
+    return okBody({
+      items: hit ? [{ note: { id: 11 }, available: true }] : [],
+      total: hit ? 1 : 0, page: 1, page_size: 50,
+    });
   }
   if (opts.method === 'DELETE') {
     if (deleteFails) return errBody('NOT_FOUND', '请求的内容不存在');
@@ -82,7 +100,7 @@ const btnByText = (root, text) =>
 const lastToast = () => (toastRoot.children.length
   ? toastRoot.children[toastRoot.children.length - 1].textContent : null);
 
-const render = async (params, overrides) => {
+const render = async (params, overrides, fav = {}) => {
   location.pathname = `/notes/${params.id}`;
   location.search = '';
   appEl.innerHTML = '';
@@ -92,12 +110,14 @@ const render = async (params, overrides) => {
   fetchCalls.length = 0;
   mode = 'ok';
   deleteFails = false;
+  favoritesMode = fav.mode || 'empty';        // empty | has-note
+  favoritePost = fav.post || 'ok';            // ok | already
   note = { ...NOTE, ...(overrides || {}) };
   const loadingSkeletons = (() => {
     safe('renderNoteDetail', () => renderNoteDetail(appEl, params));
     return all(appEl, '.skeleton').length;
   })();
-  await flush();
+  await flushDeep();
   return loadingSkeletons;
 };
 
@@ -135,6 +155,11 @@ safe('detail', () => {
   detail.actionClasses = all(actions, 'button').map((b) => b.className);
   detail.hasShareButton = all(appEl, 'button').some((b) => b.textContent.includes('分享'));
   detail.hasFavoriteButton = all(appEl, 'button').some((b) => b.textContent.includes('收藏'));
+  const fav = all(actions, 'button')
+    .find((b) => ['收藏', '已收藏'].includes(b.textContent.trim())) || null;
+  detail.favoriteText = fav ? fav.textContent.trim() : null;
+  detail.favoriteClass = fav ? fav.className : null;
+  detail.favoritePressed = fav ? fav.getAttribute('aria-pressed') : null;
 });
 
 /* 空标题 / 空正文 */
@@ -222,6 +247,109 @@ safe('missing', () => {
 await flush();
 missing.navUrl = historyCalls.length ? historyCalls[historyCalls.length - 1].url : null;
 
+/* ==========================================================================
+   E. 收藏按钮（Phase 7 Task 2）：收藏 / 已收藏 / 取消收藏二次确认
+   ========================================================================== */
+const favorite = {};
+/* 注意：最小 DOM 双端不支持后代选择器（`.detail-actions button`），
+   必须先取到容器再在其内部查询标签选择器。 */
+const actionsBox = () => field(appEl, '.detail-actions');
+const favBtn = () => {
+  const box = actionsBox();
+  if (!box) return null;
+  return all(box, 'button')
+    .find((b) => ['收藏', '已收藏'].includes(b.textContent.trim())) || null;
+};
+
+/* E-1 初始未收藏 → 文案「收藏」，无 .is-favorited */
+await render({ id: '11' });
+safe('favoriteInitial', () => {
+  const btn = favBtn();
+  favorite.initialText = btn ? btn.textContent.trim() : null;
+  favorite.initialClass = btn ? btn.className : null;
+  favorite.initialPressed = btn ? btn.getAttribute('aria-pressed') : null;
+  favorite.actionOrder = all(actionsBox(), 'button').map((b) => b.textContent.trim());
+  const get = fetchCalls.find((c) => c.method === 'GET' && c.path.startsWith('/api/favorites'));
+  favorite.listGetPath = get ? get.path : null;
+});
+
+/* E-2 点击「收藏」→ POST /api/favorites → 文案变「已收藏」+ 主色描边类 */
+safe('favoritePost', () => { const b = favBtn(); if (b) b.click(); });
+await flushDeep();
+safe('favoritePosted', () => {
+  const btn = favBtn();
+  favorite.afterText = btn ? btn.textContent.trim() : null;
+  favorite.afterClass = btn ? btn.className : null;
+  favorite.afterPressed = btn ? btn.getAttribute('aria-pressed') : null;
+  const post = fetchCalls.find((c) => c.method === 'POST' && c.path === '/api/favorites');
+  favorite.postPath = post ? post.path : null;
+  favorite.postBody = post ? post.body : null;
+});
+
+/* E-3 ALREADY_FAVORITED → 直接置为「已收藏」并 toast 后端 message */
+await render({ id: '11' }, null, { post: 'already' });
+safe('favoriteAlreadyClick', () => { const b = favBtn(); if (b) b.click(); });
+await flushDeep();
+safe('favoriteAlreadyRead', () => {
+  const btn = favBtn();
+  favorite.alreadyText = btn ? btn.textContent.trim() : null;
+  favorite.alreadyClass = btn ? btn.className : null;
+  favorite.alreadyPressed = btn ? btn.getAttribute('aria-pressed') : null;
+  favorite.alreadyToast = lastToast();
+});
+
+/* E-4 已收藏态初始化：收藏列表含该笔记 → 直接显示「已收藏」 */
+await render({ id: '11' }, null, { mode: 'has-note' });
+safe('favoritePreOn', () => {
+  const btn = favBtn();
+  favorite.preOnText = btn ? btn.textContent.trim() : null;
+  favorite.preOnClass = btn ? btn.className : null;
+  favorite.preOnPressed = btn ? btn.getAttribute('aria-pressed') : null;
+});
+
+/* E-5 点击「已收藏」→ 二次确认文案 → 取消不发请求 */
+await render({ id: '11' }, null, { mode: 'has-note' });
+safe('favoriteUnfavOpen', () => { const b = favBtn(); if (b) b.click(); });
+await flushDeep();
+safe('favoriteUnfavDialog', () => {
+  const dialog = dialogRoot.querySelector('.dialog');
+  favorite.dialogTitle = dialog ? dialog.querySelector('.dialog-title').textContent : null;
+  favorite.dialogMessage = dialog ? dialog.querySelector('.dialog-message').textContent : null;
+  favorite.dialogRole = dialog ? dialog.getAttribute('role') : null;
+  favorite.dialogAriaModal = dialog ? dialog.getAttribute('aria-modal') : null;
+  favorite.confirmText = dialog
+    ? (all(dialog, 'button').find((b) => b.textContent.trim() === '取消收藏') || {}).textContent
+    : null;
+  const cancel = dialog ? all(dialog, 'button').find((b) => b.textContent.trim() === '取消') : null;
+  if (cancel) cancel.click();
+});
+await flushDeep();
+favorite.deleteAfterCancel = fetchCalls
+  .filter((c) => c.method === 'DELETE' && c.path.startsWith('/api/favorites')).length;
+favorite.textAfterCancel = safe('favoriteAfterCancel', () => {
+  const b = favBtn(); return b ? b.textContent.trim() : null;
+});
+
+/* E-6 确认取消收藏 → DELETE /api/favorites/11 → 回到「收藏」 */
+safe('favoriteUnfavReopen', () => { const b = favBtn(); if (b) b.click(); });
+await flushDeep();
+safe('favoriteUnfavConfirm', () => {
+  const dialog = dialogRoot.querySelector('.dialog');
+  const confirm = dialog
+    ? all(dialog, 'button').find((b) => b.textContent.trim() === '取消收藏') : null;
+  if (confirm) confirm.click();
+});
+await flushDeep();
+safe('favoriteUnfavRead', () => {
+  const del = fetchCalls
+    .find((c) => c.method === 'DELETE' && c.path.startsWith('/api/favorites/'));
+  favorite.deletePath = del ? del.path : null;
+  const b = favBtn();
+  favorite.textAfterDelete = b ? b.textContent.trim() : null;
+  favorite.classAfterDelete = b ? b.className : null;
+  favorite.pressedAfterDelete = b ? b.getAttribute('aria-pressed') : null;
+});
+
 process.stdout.write(JSON.stringify({
   errors,
   detail,
@@ -229,4 +357,5 @@ process.stdout.write(JSON.stringify({
   editAction,
   remove,
   missing,
+  favorite,
 }) + '\n');

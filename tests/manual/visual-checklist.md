@@ -179,7 +179,7 @@
 | 7 | `/notes/new` | 1440×900 | 输入中 | 右侧渲染结果与左侧一致；代码块有底色与横向滚动 | 自动断言通过：`test_preview_is_debounced_and_routed_through_render_markdown`（预览内容 === `renderMarkdown()` 输出、120ms 内不更新、原文不直接注入）、`test_markdown_body_typography`（`code` 底色 `var(--c-code-bg)`、`pre` `overflow-x:auto` + `var(--c-page)` 底）；**观感：待人工确认（本环境无浏览器）** |
 | 8 | `/notes/new` | 1440×900 | 脏标记 | 改动后底部显示「未保存的更改」；点导航弹确认弹窗 | 自动断言通过：`test_status_count_and_dirty_marker`（改动后 `未保存的更改` + 标题圆点）、`test_navigate_is_blocked_while_dirty_and_clears_flag`（取消不跳转、离开后清标记）、`test_beforeunload_guards_only_when_dirty`；**弹窗动画与圆点观感：待人工确认（本环境无浏览器）** |
 | 9 | `/notes/new` | 375×812 | 默认 | 出现「编辑 / 预览」切换，默认显示编辑 | 自动断言通过：`test_editor_tabs_hidden_on_desktop_visible_on_mobile`（桌面 `display:none`、≤768px `display:flex`）、`test_mobile_pane_toggle`（默认 `is-showing-source`，点击切到 `is-showing-preview` 且 `aria-pressed` 同步）；**实际布局观感：待人工确认（本环境无浏览器）** |
-| 10 | `/notes/:id` | 1440×900 | 有数据 | 标题、元信息、纸张正文、操作条；正文宽度 720px 居中 | 自动断言通过：`test_detail_structure_and_meta`（标题/徽标/时间/`共 N 字`/标签）、`test_detail_body_is_rendered_markdown`、`test_detail_actions_only_edit_and_delete`、`test_detail_css`（`.detail-body` `max-width:var(--reading-max)`（720px）+ `margin:0 auto`）；**像素观感：待人工确认（本环境无浏览器）** |
+| 10 | `/notes/:id` | 1440×900 | 有数据 | 标题、元信息、纸张正文、操作条；正文宽度 720px 居中 | 自动断言通过：`test_detail_structure_and_meta`（标题/徽标/时间/`共 N 字`/标签）、`test_detail_body_is_rendered_markdown`、`test_detail_actions_are_favorite_edit_delete`（Phase 7 起操作条为「收藏 / 编辑 / 删除」，取代 Phase 5 的「编辑 / 删除」两档；收藏按钮三态与二次确认见 Phase 7 段落）、`test_detail_css`（`.detail-body` `max-width:var(--reading-max)`（720px）+ `margin:0 auto`）；**像素观感：待人工确认（本环境无浏览器）** |
 | 11 | `/notes/:id` | 1440×900 | 删除确认 | 弹窗文案「确定要删除这篇笔记吗？删除后无法恢复。」 | 自动断言通过：`test_detail_delete_confirmation_copy`（标题「删除笔记」、正文逐字、按钮「取消 / 确定删除」、取消后零删除请求）、`test_detail_delete_confirmed_returns_to_list`（DELETE → toast「已删除」→ 回 `/notes`）；**弹窗观感：待人工确认（本环境无浏览器）** |
 | 12 | `/notes/:id` | 1440×900 | 不存在 | 显示「笔记不存在或已被删除」与返回按钮 | 自动断言通过：`test_detail_missing_note_shows_empty_state`（文案逐字 + 「返回笔记列表」→ `/notes`）；**观感：待人工确认（本环境无浏览器）** |
 | 13 | `/notes/new` | 键盘 | 默认 | Tab 依次可达标题、标签、两个按钮、图片按钮、正文 | 自动断言通过：`test_editor_interactive_elements_are_reachable_in_dom_order`（DOM 顺序：标题 → 标签 → 存草稿 → 发布 → 编辑/预览 → 正文 → 插入图片 → 隐藏文件框）、`test_editor_tabs_hidden_on_desktop_visible_on_mobile`（桌面上「编辑/预览」`display:none`，不在 Tab 序列内）。计划要求图片按钮位于编辑器底部工具条，故桌面实际 Tab 序列为「标题 → 标签 → 存草稿 → 发布 → 正文 → 插入图片」，与清单文字顺序（图片按钮在正文之前）不同源；**焦点环可见性与真实 Tab 走查：待人工确认（本环境无浏览器）** |
@@ -340,3 +340,112 @@
    （`mark_share_unlocked`）。这是会话态而非数据库写入，GET 仍无持久化副作用。
 5. **DOM 双端差异**：Node 最小 DOM 断言节点树/属性与 CSS 文本契约，不覆盖浏览器布局、层叠、
    焦点环可见性与动画观感。
+
+---
+
+## Phase 7 · 收藏、足迹与个人主页
+
+> 环境说明：本执行环境（Windows 11 / Git Bash）**没有可用浏览器，也没有 jsdom**，无法点击、截图或使用 DevTools。
+> 凡依赖像素渲染、布局结果、动画观感、焦点环可见性、toast 位置与浏览器真实跳转的检查点，一律标注为
+> 「**待人工确认（本环境无浏览器）**」，**不视为已通过**。
+> 替代验证路径（已执行并给出证据）：
+> 1. `tests/js/render_profile.mjs`（复用 `tests/js/dom-shim.mjs` 最小 DOM 双端）真实调用
+>    `static/js/profile.js` 的 `renderProfile`、`static/js/notes.js` 的 `renderNoteGrid`、
+>    `static/js/ui.js` 的 `staleCard` / `favoriteButton`，断言四 Tab 标记、激活态与 URL 同步、
+>    资料保存与改密本地校验、三条列表的可用/失效条目与移除/清空流程、三处空态文案与 DOM 顺序；
+> 2. `tests/js/render_note_detail.mjs` / `tests/js/render_share.mjs` 覆盖详情页与分享页的
+>    「收藏 / 已收藏」按钮三态、`ALREADY_FAVORITED` 处理与取消收藏二次确认；
+> 3. `tests/test_profile_frontend.py`、`tests/test_notes_frontend.py`、`tests/test_share_frontend.py`
+>    用字节级 CSS 契约断言 `profile.css` / `notes.css` / `share.css` 的断点、尺寸与令牌接线；
+> 4. `tests/test_favorites_api.py`、`tests/test_history_api.py` 用 Flask test client 驱动收藏与足迹全链路
+>    （可访问性判定、去重倒序、失效态脱敏、匿名不记录、列表接口无副作用）。
+
+| # | 路由 | 视口 | 状态 | 检查点 | 结果 |
+|---|------|------|------|--------|------|
+| 1 | `/me` | 1440×900 | 个人信息 | 头像 64px、用户名/邮箱/简介/注册时间；编辑表单两列 | 自动断言通过：`test_info_card_shows_avatar_username_email_bio_joined`（首字色块、用户名、邮箱、空简介显示「还没有填写简介」、注册时间经 `formatDate`）、`test_info_edit_form_fields`（用户名预填、简介 `maxlength=200`、「保存资料」）、`test_info_password_form_three_inputs`（原密码 / 新密码 / 确认新密码三个密码框 + 「修改密码」按钮）、`test_profile_card_and_avatar_rules`（`.profile-avatar` 64×64 / 50% / `var(--c-accent)` 底 + `var(--c-text)` 字）、`test_profile_form_grid_and_mobile`（`.profile-form` `grid-template-columns:1fr 1fr` + `gap:var(--sp-4)`）；**两列实际排版与纸张质感：待人工确认（本环境无浏览器）** |
+| 2 | `/me` | 1440×900 | 保存成功 | 顶栏用户名与卡片同步更新 + toast「已保存」 | 自动断言通过：`test_save_profile_puts_and_updates_store_and_header`（`PUT /api/users/me/profile` 载荷正确 → `store.setUser` 写回 → 顶栏序列化含新用户名 → 页面卡片同步 → toast「已保存」）；**toast 实际位置与停留时长：待人工确认（本环境无浏览器）** |
+| 3 | `/me` | 1440×900 | 改密失败 | 新密码 `abcdefgh` → 显示密码强度文案 | 自动断言通过：`test_password_local_validation_rejects_weak_before_request`（本地文案 === `auth.js` 的 `FIELD_MESSAGES.PASSWORD_WEAK`，且校验不通过时零请求）、`test_password_local_validation_rejects_mismatch_before_request`（两次不一致 → `PASSWORD_MISMATCH`）、`test_password_server_error_toasts_backend_message`（服务端 `PASSWORD_WRONG` 取后端 message）；**错误文案观感：待人工确认（本环境无浏览器）** |
+| 4 | `/me` | 1440×900 | 我的笔记空态 | 「还没有笔记，去写下第一篇吧」 | 自动断言通过：`test_notes_tab_empty_state`（文案逐字 + 「写第一篇笔记」→ `/notes/new`）；**观感：待人工确认（本环境无浏览器）** |
+| 5 | `/me` | 1440×900 | 我的收藏空态 | 「还没有收藏」 | 自动断言通过：`test_favorites_empty_state`（文案逐字）；**观感：待人工确认（本环境无浏览器）** |
+| 6 | `/me` | 1440×900 | 浏览足迹空态 | 「还没有浏览记录」 | 自动断言通过：`test_history_empty_state`（文案逐字；「清空浏览记录」按钮在空态下仍可见，见 `test_clear_history_confirmed_empties_list` 的 `emptyAfterClear`）；**观感：待人工确认（本环境无浏览器）** |
+| 7 | `/me` | 1440×900 | 失效收藏 | 卡片显示「内容已失效」+「移除」按钮 | 自动断言通过：`test_favorites_list_available_and_stale_entries`（失效条目标题位置为「内容已失效」、副文案显示作者名、「移除」入口存在）、`test_stale_card_contract`（`.note-card.is-stale` + `.paper`、无 tabindex/role 即标题不可点击、无徽标、点击「移除」回调一次）、`test_favorites_remove_stale_entry`（`DELETE /api/favorites/22` 后卡片消失）、`test_stale_actions_rule`（`.stale-actions` `display:flex` + `justify-content:flex-end` 右下角对齐）；**失效卡片的灰度观感：待人工确认（本环境无浏览器）** |
+| 8 | `/me` | 1440×900 | 清空记录 | 弹窗文案「确定要清空全部浏览记录吗？此操作不可恢复。」 | 自动断言通过：`test_clear_history_confirmation_copy`（标题「清空浏览记录」、正文逐字、按钮「取消」/「清空」且确认键 `btn-danger`、取消后零请求）、`test_clear_history_confirmed_empties_list`（`DELETE /api/history` → 列表清空 → 空态 → toast「已清空浏览记录」）；**弹窗动画观感：待人工确认（本环境无浏览器）** |
+| 9 | `/me` | 375×812 | 个人信息 | Tab 可横向滚动或换行；表单单列、按钮整宽 | 自动断言通过：`test_profile_form_grid_and_mobile`（≤768px `.profile-form` 单列 + `.profile-form .btn` `width:100%`）、`test_profile_tabs_rule`（`.profile-tabs` `display:flex` + `gap:var(--sp-6)` + `border-bottom:var(--bd)`；窄屏由 `overflow-x:auto` 承载横向滚动，Tab 文案 `white-space:nowrap`）；**「无横向滚动条」与换行后的实际观感：待人工确认（本环境无浏览器）** |
+| 10 | `/notes/:id` | 1440×900 | 已收藏 | 收藏按钮变「已收藏」并有主色描边 | 自动断言通过：`test_detail_favorite_click_posts_and_flips`（`POST /api/favorites` 后文案「已收藏」+ `.is-favorited` + `aria-pressed=true`）、`test_detail_already_favorited_flips_and_toasts_backend_message`（`ALREADY_FAVORITED` 直接置为已收藏并 toast 后端 message）、`test_detail_prefavorited_state_comes_from_favorites_list`（初始即已收藏）、`test_favorite_button_style_uses_tokens`（`.btn.is-favorited` `border-color`/`color` 均取 `var(--c-primary-hover)`）；**描边观感与对比度：待人工确认（本环境无浏览器）** |
+| 11 | `/s/:token` | 1440×900 | 未登录点收藏 | 跳转 `/login?redirect=/s/<token>` | 自动断言通过：`test_share_collect_logged_out_redirects_to_login`（落点为 `/login?redirect=%2Fs%2Ftok-123`，且未登录时不查询 `/api/favorites`、不直接 POST）、`test_share_collect_logged_in_queries_then_posts`（登录后渲染即查询收藏态，点击后 `POST /api/favorites` 载荷 `{note_id:7}`）、`test_share_collect_unfavorite_confirmation_and_delete`（取消收藏二次确认 + `DELETE /api/favorites/7`）；**浏览器实际跳转与返回落点：待人工确认（本环境无浏览器）** |
+| 12 | `/me` | 键盘 | 默认 | Tab 键可达四个 Tab 与各表单控件，焦点环可见 | 部分自动断言通过：`test_profile_interactive_order`（四个 Tab 与资料表单/改密表单控件的 DOM 顺序即可达顺序的上界）、`test_tab_buttons_are_tabs`（四个 Tab 均为 `role=tab`）；焦点环沿用 base.css 的 `:focus-visible` 2px `var(--c-primary-hover)`（Phase 8 决定是否调整）；**完整 Tab 走查与焦点环可见性：待人工确认（本环境无浏览器）** |
+
+### Phase 7 · 安全不变式走查
+
+| # | 走查项 | 结论 |
+|---|--------|------|
+| 1 | 收藏目标只能是本人笔记或「公开且带 token」的分享笔记，他人私密笔记返回 `NOT_FOUND`（不泄露存在性） | 自动断言通过：`test_cannot_favorite_inaccessible_note`（他人私密笔记 → 404 `NOT_FOUND`）、`test_can_favorite_shared_public_note`（公开带 token 可收藏）、`test_favorite_own_note` |
+| 2 | 失效条目只返回 `title: null` / `summary: null`，绝不返回 `content_md`；列表 JOIN 只取 `username` / `avatar`，不返回作者邮箱 | 自动断言通过：`test_favorites_payload_never_exposes_content_or_email`、`test_history_payload_never_exposes_content_or_email`（字段白名单 + 原始响应体不含正文尾部与 `@example.com`；失效态连标题/摘要/标签都不返回）。已用变异测试反证断言有区分力（见下方证据表） |
+| 3 | 足迹仅由「读详情 / 读分享 / 校验分享成功」写入且只记已登录用户；列表接口无副作用 | 自动断言通过：`test_history_only_written_by_reads_not_lists`（`GET /notes`、`GET /tags` 后足迹为 0）、`test_anonymous_view_is_not_recorded`（匿名读分享后作者与新用户足迹均为 0）、`test_anonymous_detail_read_records_nothing`、`test_password_share_verify_success_records_history`（校验失败不记录、成功才记录） |
+| 4 | 足迹按 `(user_id, note_id)` 去重、刷新时间，列表按 `viewed_at DESC, id DESC` | 自动断言通过：`test_repeat_view_deduplicates`（重复浏览 total 仍为 1 且时间不回退）、`test_history_pagination_and_order`（12 条分页 5 条且首条为最后浏览的笔记）、`test_history_requires_login` |
+| 5 | 「我的收藏」打开他人分享笔记：会话内未解锁时详情接口返回 `NOT_FOUND`，前端必须给出明确提示而非静默失败 | 自动断言通过：`test_favorites_open_blocked_shows_explicit_message`（探测详情 404 → toast「需要先通过分享链接访问并解锁」，且不导航）、`test_favorites_open_available_probes_then_navigates_to_detail`（可读时先探测再跳 `/notes/21`） |
+| 6 | 三个列表与资料卡片中的用户内容只经 `textContent` 写入，不新增 HTML 出口 | 自动断言通过：`test_innerhtml_hits_are_classified_and_reported`（全项目 `innerHTML` 赋值逐个分类；Phase 7 未新增任何写入点——`profile.js` 与 `ui.js` 的 `staleCard` / `favoriteButton` 全部使用 `textContent`） |
+
+### 证据与命令（Phase 7）
+
+| 命令 | 结果 |
+|------|------|
+| `.venv/Scripts/python.exe -m pytest tests/ -q` | **全部通过**（387 → 见报告：新增 `test_favorites_api.py` 11 项、`test_history_api.py` 13 项、`test_profile_frontend.py` 42 项，并更新 Phase 5/6 的两处被本阶段取代的断言） |
+| `.venv/Scripts/python.exe -m pytest tests/test_favorites_api.py tests/test_history_api.py -q` | 收藏与足迹后端契约全部通过 |
+| `.venv/Scripts/python.exe -m pytest tests/test_profile_frontend.py -q` | 个人主页四 Tab 契约全部通过 |
+| `node tests/js/render_profile.mjs` | `errors: {}`；输出四 Tab、资料卡片、保存/改密、三条列表、失效占位与守卫 |
+| `node tests/js/render_note_detail.mjs` | `errors: {}`；输出详情页收藏按钮三态与取消收藏二次确认 |
+| `node tests/js/render_share.mjs` | `errors: {}`；输出分享页收藏按钮（未登录跳登录 / 登录后收藏 / 取消收藏） |
+| `.venv/Scripts/python.exe tests/manual/check_contrast.py` | 全部达标（退出码 0）；Phase 7 未引入新色值令牌 |
+| `node --check static/js/{profile,notes,share,ui,router}.js` | 语法通过 |
+
+#### 断言有效性反证（变异测试）
+
+为证明「失效条目不泄露内容」「匿名浏览不写入」「列表接口不写足迹」三条安全断言不是空断言，
+临时注入三处缺陷并确认对应测试立刻转红（随后已还原）：
+
+| 注入的缺陷 | 转红的测试 |
+|------------|-----------|
+| 失效收藏条目额外返回 `content_md` | `test_favorites_payload_never_exposes_content_or_email` |
+| 匿名读者也写入足迹（记到已有用户头上） | `test_anonymous_view_is_not_recorded` |
+| `GET /notes` 列表接口顺带写足迹 | `test_history_only_written_by_reads_not_lists` |
+
+代码定位：四 Tab 视图 `static/js/profile.js renderProfile()`；收藏按钮 `static/js/ui.js favoriteButton()`；
+失效占位 `static/js/ui.js staleCard()`；网格复用 `static/js/notes.js renderNoteGrid()`；
+路由注册 `static/js/router.js`（`/me`，`requiresAuth`）；样式 `static/css/profile.css`（令牌接线）；
+接口 `api/favorites.py`、`api/history.py`；DAO `core/db.py`（`note_is_viewable` / `add_favorite` /
+`list_favorites` / `touch_history` / `list_history` / `clear_history`）；足迹写入点 `api/notes.py`
+（`get_note_detail`）与 `api/share.py`（`read_shared_note` / `verify_share_password`）。
+
+### 待人工确认的截图清单（本环境无浏览器，未采集）
+
+- `phase7-me-info-1440x900.png`（行 1）
+- `phase7-me-info-saved-1440x900.png`（行 2）
+- `phase7-me-password-weak-1440x900.png`（行 3）
+- `phase7-me-notes-empty-1440x900.png`（行 4）
+- `phase7-me-favorites-empty-1440x900.png`（行 5）
+- `phase7-me-history-empty-1440x900.png`（行 6）
+- `phase7-me-favorites-stale-1440x900.png`（行 7）
+- `phase7-me-history-clear-confirm-1440x900.png`（行 8）
+- `phase7-me-info-375x812.png`（行 9）
+- `phase7-detail-favorited-1440x900.png`（行 10）
+- `phase7-share-loggedout-collect-1440x900.png`（行 11）
+- 键盘走查（行 12）无截图，按行逐项手工确认
+
+### Phase 7 遗留风险
+
+1. **收藏状态查询上限**：详情页/分享页的收藏按钮通过 `GET /api/favorites?page_size=50` 反查状态；
+   收藏数超过 50 时可能查不到而被显示为「收藏」，点击后由服务端返回 `ALREADY_FAVORITED`，
+   前端再纠正为「已收藏」并提示。这是计划规定的实现方式，未新增「按 note_id 查收藏态」的接口。
+2. **取消收藏在卡片内的冒泡**：最小 DOM 双端不实现事件冒泡，harness 用自带冒泡语义的
+   `realClick` 探针验证 `stopPropagation` 被调用；浏览器中真实冒泡行为仍需人工确认。
+3. **「我的收藏」移除不弹二次确认**：计划对本 Tab 的「移除 / 取消收藏」只要求调用对应 DELETE
+   并从列表移除，未要求二次确认；确认弹窗的文案「确定要取消收藏这篇笔记吗？」仅用于
+   详情页与分享页的收藏按钮。
+4. **顶栏用户名可见性**：顶栏已登录态按 Phase 3 设计只渲染首字头像，用户名以
+   `aria-label="账号菜单：<用户名>"` 承载（无可见文本）。保存资料后顶栏「即时更新」的可断言证据
+   是 store 通知 + 顶栏重新序列化后的新用户名，视觉上仍是首字色块。
+5. **`staleCard` 的 `onOpen` 形参未使用**：计划签名含 `onOpen`，但同一条要求「标题本身不可点击」，
+   故该形参仅保留签名兼容，不接任何打开行为（与 Phase 6 `renderComments` 的 `noteOwnerId` 同类取舍）。
+6. **DOM 双端差异**：Node 最小 DOM 断言节点树/属性与 CSS 文本契约，不覆盖浏览器布局、层叠、
+   焦点环可见性、色块渲染与动画观感。

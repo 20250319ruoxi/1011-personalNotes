@@ -103,15 +103,19 @@ def get_note_detail(note_id):
     if note is None or note["is_deleted"]:
         return fail("NOT_FOUND")
 
-    if note["user_id"] != current_user()["id"]:
+    viewer_id = current_user()["id"]
+    if note["user_id"] != viewer_id:
         # 他人笔记只有在「已公开分享 + 当前会话已解锁该 token」时才可读；
         # 仅凭猜 id 无法满足（解锁需先经 /api/share/<token>）。载荷不带分享字段。
         if (note["status"] == "public" and note["share_token"]
                 and is_share_unlocked(note["share_token"])):
+            # 确认可读后记录足迹（仅登录用户；本接口受 login_required 保护）
+            db_module.touch_history(conn, viewer_id, note_id)
             return ok({"note": note_to_dict(note, db_module.get_note_tags(conn, note_id),
                                             include_share=False)})
         return fail("NOT_FOUND")
 
+    db_module.touch_history(conn, viewer_id, note_id)
     return ok({"note": note_to_dict(note, db_module.get_note_tags(conn, note_id),
                                     include_share=True)})
 

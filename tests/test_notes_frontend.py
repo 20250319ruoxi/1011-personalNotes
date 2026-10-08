@@ -31,6 +31,14 @@ SEARCH_PLACEHOLDER = "搜索标题或正文…"
 STALE_TITLE = "内容已失效"
 NOT_FOUND_TITLE = "笔记不存在或已被删除"
 
+# Phase 7 Task 2 · 收藏按钮
+FAVORITE_TEXT = "收藏"
+FAVORITED_TEXT = "已收藏"
+FAVORITE_CLASS = "favorite-btn"
+UNFAVORITE_TITLE = "取消收藏"
+UNFAVORITE_MESSAGE = "确定要取消收藏这篇笔记吗？"
+ALREADY_FAVORITED_MESSAGE = "已收藏过该笔记"
+
 
 @pytest.fixture(scope="module")
 def rendered() -> dict:
@@ -438,13 +446,16 @@ def test_detail_body_is_rendered_markdown(detail):
     assert d["bodyHtml"] == d["bodyExpected"], "正文必须等于 renderMarkdown(content_md)"
 
 
-def test_detail_actions_only_edit_and_delete(detail):
+def test_detail_actions_are_favorite_edit_delete(detail):
+    """Phase 7 Task 2 起操作条为「收藏 / 编辑 / 删除」，收藏按钮排在编辑之前。"""
     d = block(detail, "detail")
-    assert d["actionTexts"] == ["编辑", "删除"]
+    assert d["actionTexts"] == [FAVORITE_TEXT, "编辑", "删除"]
     assert "btn-secondary" in d["actionClasses"][0]
-    assert "btn-danger" in d["actionClasses"][1]
-    assert d["hasShareButton"] is False, "Phase 5 详情页不放分享按钮（Phase 6 插入）"
-    assert d["hasFavoriteButton"] is False, "Phase 5 详情页不放收藏按钮（Phase 7 插入）"
+    assert FAVORITE_CLASS in d["actionClasses"][0]
+    assert "btn-secondary" in d["actionClasses"][1]
+    assert "btn-danger" in d["actionClasses"][2]
+    assert d["hasShareButton"] is False, "详情页不放独立分享按钮（由分享面板承担）"
+    assert d["hasFavoriteButton"] is True
 
 
 def test_detail_empty_title_and_content(detail):
@@ -517,3 +528,67 @@ def test_detail_actions_mobile(notes_css):
 
     btn = find_rule(notes_css, ".detail-actions .btn", media="max-width: 768px")
     assert btn is not None and prop(btn, "flex:1 1 45%")
+
+
+# ==========================================================================
+# Phase 7 Task 2 · 详情页收藏按钮
+# ==========================================================================
+
+def test_detail_favorite_button_initial_state(detail):
+    """渲染时并行查询收藏列表；未收藏时显示「收藏」且不置 aria-pressed。"""
+    f = block(detail, "favorite")
+    assert f["actionOrder"] == [FAVORITE_TEXT, "编辑", "删除"]
+    assert f["initialText"] == FAVORITE_TEXT
+    assert FAVORITE_CLASS in f["initialClass"]
+    assert "is-favorited" not in f["initialClass"]
+    assert f["initialPressed"] == "false"
+    assert f["listGetPath"] == "/api/favorites?page_size=50"
+
+
+def test_detail_favorite_click_posts_and_flips(detail):
+    f = block(detail, "favorite")
+    assert f["postPath"] == "/api/favorites"
+    assert json.loads(f["postBody"]) == {"note_id": 11}
+    assert f["afterText"] == FAVORITED_TEXT
+    assert "is-favorited" in f["afterClass"]
+    assert f["afterPressed"] == "true"
+
+
+def test_detail_already_favorited_flips_and_toasts_backend_message(detail):
+    """ALREADY_FAVORITED 不当作失败流程：直接置为「已收藏」并 toast 后端 message。"""
+    f = block(detail, "favorite")
+    assert f["alreadyText"] == FAVORITED_TEXT
+    assert "is-favorited" in f["alreadyClass"]
+    assert f["alreadyToast"] == ALREADY_FAVORITED_MESSAGE
+
+
+def test_detail_prefavorited_state_comes_from_favorites_list(detail):
+    f = block(detail, "favorite")
+    assert f["preOnText"] == FAVORITED_TEXT
+    assert "is-favorited" in f["preOnClass"]
+
+
+def test_detail_unfavorite_confirmation_copy(detail):
+    f = block(detail, "favorite")
+    assert f["dialogTitle"] == UNFAVORITE_TITLE
+    assert f["dialogMessage"] == UNFAVORITE_MESSAGE
+    assert f["dialogRole"] == "dialog"
+    assert f["dialogAriaModal"] == "true"
+    assert f["confirmText"] == UNFAVORITE_TITLE
+    assert f["deleteAfterCancel"] == 0, "取消后不得发起取消收藏请求"
+    assert f["textAfterCancel"] == FAVORITED_TEXT, "取消后按钮保持「已收藏」"
+
+
+def test_detail_unfavorite_confirmed_deletes_and_flips_back(detail):
+    f = block(detail, "favorite")
+    assert f["deletePath"] == "/api/favorites/11"
+    assert f["textAfterDelete"] == FAVORITE_TEXT
+    assert "is-favorited" not in f["classAfterDelete"]
+    assert f["pressedAfterDelete"] == "false"
+
+
+def test_favorite_button_style_uses_tokens(notes_css):
+    body = find_rule(notes_css, ".btn.is-favorited")
+    assert body is not None, "缺少 .btn.is-favorited（已收藏态主色描边）"
+    assert prop(body, "border-color:var(--c-primary-hover)")
+    assert prop(body, "color:var(--c-primary-hover)")

@@ -194,3 +194,55 @@ def test_visual_checklist_phase6_covers_the_thirteen_required_states():
                     "关闭分享", "还没有评论，来说点什么吧", "登录后可发表评论",
                     "确定要删除这条评论吗？删除后无法恢复。"):
         assert keyword in text, f"Phase 6 清单缺少关键检查点：{keyword}"
+
+
+# ==========================================================================
+# visual-checklist.md · Phase 7
+# ==========================================================================
+
+def phase7_section() -> str:
+    return _section("## Phase 7 · 收藏、足迹与个人主页")
+
+
+def test_visual_checklist_has_phase7_section():
+    assert phase7_section().strip(), "Phase 7 段落为空"
+
+
+def test_visual_checklist_phase7_has_twelve_rows():
+    rows = table_rows(phase7_section(), columns=6)
+    assert [int(r[0]) for r in rows] == list(range(1, 13)), [r[0] for r in rows]
+
+
+def test_visual_checklist_phase7_rows_are_pending_or_backed_by_a_test():
+    for row in table_rows(phase7_section(), columns=6):
+        result = row[5]
+        assert result, f"Phase 7 第 {row[0]} 行「结果」为空"
+        assert PENDING in result or "test_" in result, (
+            f"Phase 7 第 {row[0]} 行既未标注待人工确认，也未引用任何自动断言：{result!r}"
+        )
+
+
+def test_visual_checklist_phase7_references_only_existing_tests():
+    """Phase 7 行内引用的每个 `test_xxx` 都必须真的存在于 tests/ 下。"""
+    available = defined_test_names()
+    assert available, "未在 tests/ 下发现任何测试函数，疑似扫描失效"
+    referenced = referenced_test_names(phase7_section())
+    assert referenced, "Phase 7 段落未引用任何自动断言"
+    missing = sorted(referenced - available)
+    assert not missing, f"Phase 7 清单引用了不存在的测试：{missing}"
+
+
+def test_visual_checklist_phase7_declares_environment_gap():
+    text = phase7_section()
+    assert "没有可用浏览器" in text or "无浏览器" in text
+
+
+def test_visual_checklist_phase7_covers_the_twelve_required_states():
+    text = phase7_section()
+    for keyword in ("待人工确认（本环境无浏览器）", "个人信息", "我的笔记", "我的收藏", "浏览足迹",
+                    "还没有笔记，去写下第一篇吧", "还没有收藏", "还没有浏览记录",
+                    "还没有填写简介", "内容已失效", "移除", "取消收藏",
+                    "保存资料", "修改密码", "密码强度文案",
+                    "确定要清空全部浏览记录吗？此操作不可恢复。",
+                    "/login?redirect=/s/<token>", "已收藏"):
+        assert keyword in text, f"Phase 7 清单缺少关键检查点：{keyword}"

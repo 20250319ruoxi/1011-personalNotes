@@ -1,1 +1,199 @@
-/* profile.css — 个人主页四 Tab 样式（Phase 7 实现）。Phase 1 仅占位，避免 404 影响排查。 */
+/* profile.css — 个人主页四 Tab（Phase 7 Task 3）。
+   颜色 / 间距 / 圆角 / 阴影一律引用 base.css 令牌，不硬编码任何色值。 */
+
+/* ==========================================================================
+   页面容器与 Tab 栏
+   ========================================================================== */
+
+.profile-page {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--sp-8) var(--gutter) var(--sp-16);
+}
+
+.profile-tabs {
+  display: flex;
+  gap: var(--sp-6);
+  border-bottom: var(--bd);
+  overflow-x: auto;
+}
+
+.profile-tabs button {
+  min-height: 44px;
+  padding: 0 var(--sp-1);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--c-text-muted-strong);
+  font-size: var(--fs-base);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.profile-tabs button.is-active {
+  border-bottom: 3px solid var(--c-primary-hover);
+  color: var(--c-text);
+  font-weight: 600;
+}
+
+.profile-panel {
+  margin-top: var(--sp-8);
+}
+
+/* ==========================================================================
+   个人信息：资料卡片
+   ========================================================================== */
+
+.profile-card {
+  background-image: url("/static/img/paper.jpg");
+  background-color: var(--c-paper-fallback);
+  border: var(--bd);
+  border-radius: var(--r-2);
+  padding: var(--sp-8);
+}
+
+.profile-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--c-accent);
+  color: var(--c-text);
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  overflow: hidden;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-username {
+  margin-top: var(--sp-4);
+  font-size: var(--fs-h2);
+  font-weight: 600;
+}
+
+.profile-fields {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: var(--sp-2) var(--sp-4);
+  margin-top: var(--sp-4);
+  font-size: var(--fs-sm);
+}
+
+.profile-field-label {
+  color: var(--c-text-muted-strong);
+}
+
+.profile-email,
+.profile-bio,
+.profile-joined {
+  margin: 0;
+  color: var(--c-text);
+  word-break: break-word;
+}
+
+/* ==========================================================================
+   个人信息：编辑区与改密区
+   ========================================================================== */
+
+.profile-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+  margin-top: var(--sp-6);
+  background-image: url("/static/img/paper.jpg");
+  background-color: var(--c-paper-fallback);
+  border: var(--bd);
+  border-radius: var(--r-2);
+  padding: var(--sp-8);
+}
+
+.profile-form .field { margin: 0; }
+
+.profile-form .btn {
+  align-self: end;
+  justify-self: start;
+}
+
+.profile-password-form {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-4);
+  margin-top: var(--sp-6);
+  background-image: url("/static/img/paper.jpg");
+  background-color: var(--c-paper-fallback);
+  border: var(--bd);
+  border-radius: var(--r-2);
+  padding: var(--sp-8);
+}
+
+.profile-password-form .field { margin: 0; }
+
+.profile-password-error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.profile-password-form .btn {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+/* ==========================================================================
+   列表 Tab：网格 / 作者 / 操作条
+   ========================================================================== */
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--sp-6);
+}
+
+.note-card-author {
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted-strong);
+}
+
+.stale-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+.favorite-remove {
+  align-self: flex-end;
+  padding: 0;
+}
+
+.profile-history-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--sp-6);
+}
+
+/* ==========================================================================
+   响应式：≤768px 表单单列、按钮整宽
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .profile-form { grid-template-columns: 1fr; }
+  .profile-password-form { grid-template-columns: 1fr; }
+
+  .profile-form .btn {
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  .profile-password-form .btn {
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  .profile-fields { grid-template-columns: 1fr; }
+}

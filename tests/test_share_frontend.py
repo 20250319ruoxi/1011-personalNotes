@@ -41,6 +41,12 @@ COPIED_TOAST = "链接已复制"
 MANUAL_COPY = "请手动复制"
 CLOSE_SHARE = "关闭分享"
 CLOSE_MESSAGE = "关闭后该链接将立即失效，已收藏或浏览过的人将无法再打开。"
+# Phase 7 Task 2 · 分享页收藏按钮
+FAVORITE_TEXT = "收藏"
+FAVORITED_TEXT = "已收藏"
+FAVORITE_CLASS = "favorite-btn"
+UNFAVORITE_TITLE = "取消收藏"
+UNFAVORITE_MESSAGE = "确定要取消收藏这篇笔记吗？"
 
 
 @pytest.fixture(scope="module")
@@ -165,15 +171,19 @@ def test_share_page_meta_shows_author_and_tags(rendered):
 def test_share_page_slots_and_title(rendered):
     p = block(rendered, "sharePage")
     assert p["hasActions"] is True, "缺少 .share-actions / #share-actions 容器"
-    assert p["actionsEmpty"] is True, "本阶段 .share-actions 必须留空（收藏按钮 Phase 7 插入）"
+    assert p["actionButtonTexts"] == [FAVORITE_TEXT], (
+        "分享页操作区应有且仅有收藏按钮（Phase 7 Task 2 插入）"
+    )
     assert p["hasComments"] is True, "缺少 #share-comments 容器"
     assert p["titleTag"] == f"「{SHARE_TITLE}」- 个人笔记"
 
 
-def test_share_page_has_no_owner_affordances(rendered):
+def test_share_page_has_only_the_collect_action(rendered):
+    """分享页是读者视角：不得出现编辑 / 删除 / 分享面板入口，只放收藏。"""
     p = block(rendered, "sharePage")
-    for banned in ("编辑", "删除", "收藏", "分享"):
+    for banned in ("编辑", "删除", "关闭分享", "更新密码", "复制链接"):
         assert banned not in p["buttonTexts"], f"分享页不得出现「{banned}」入口"
+    assert FAVORITE_TEXT in p["buttonTexts"]
     assert p["hasLock"] is False
 
 
@@ -375,11 +385,12 @@ def test_detail_mounts_share_panel_and_comments(rendered):
     assert d["commentsPaths"] == ["/api/notes/11/comments"]
 
 
-def test_detail_actions_stay_edit_and_delete_only(rendered):
+def test_detail_actions_include_favorite(rendered):
     d = block(rendered, "detailMount")
-    assert d["actionTexts"] == ["编辑", "删除"]
-    assert "btn-secondary" in d["actionClasses"][0]
-    assert "btn-danger" in d["actionClasses"][1]
+    assert d["actionTexts"] == [FAVORITE_TEXT, "编辑", "删除"]
+    assert FAVORITE_CLASS in d["actionClasses"][0]
+    assert "btn-secondary" in d["actionClasses"][1]
+    assert "btn-danger" in d["actionClasses"][2]
 
 
 def test_detail_slot_order(rendered):
@@ -502,6 +513,58 @@ def test_share_panel_link_row_rule(share_css):
     narrow = find_rule(share_css, ".share-panel .link-row", media="max-width: 768px")
     assert narrow is not None, "缺少 ≤768px 的 .share-panel .link-row 规则"
     assert prop(narrow, "flex-direction:column")
+
+
+# ==========================================================================
+# Phase 7 Task 2 · 分享页收藏按钮
+# ==========================================================================
+
+def test_share_collect_logged_out_redirects_to_login(rendered):
+    """未登录点击收藏 → 跳 `/login?redirect=<当前路径>`，不做静默失败，也不查询收藏列表。"""
+    f = block(rendered, "shareFavorite")
+    assert f["anonText"] == FAVORITE_TEXT
+    assert f["anonFavoriteRequests"] == 0, "未登录不得查询 /api/favorites（会触发 UNAUTHORIZED 跳转）"
+    assert f["anonPostCalls"] == 0, "未登录不得直接收藏"
+    assert f["anonNavUrl"] == "/login?redirect=%2Fs%2Ftok-123"
+
+
+def test_share_collect_logged_in_queries_then_posts(rendered):
+    f = block(rendered, "shareFavorite")
+    assert f["loginText"] == FAVORITE_TEXT
+    assert f["loginPressed"] == "false"
+    assert f["loginFavoriteRequests"] == 1, "登录后渲染时应查询收藏状态"
+    assert f["postPath"] == "/api/favorites"
+    assert json.loads(f["postBody"]) == {"note_id": 7}
+    assert f["loginAfterText"] == FAVORITED_TEXT
+    assert "is-favorited" in f["loginAfterClass"]
+    assert f["loginAfterPressed"] == "true"
+
+
+def test_share_collect_prefavorited_state(rendered):
+    f = block(rendered, "shareFavorite")
+    assert f["preOnText"] == FAVORITED_TEXT
+    assert FAVORITE_CLASS in f["preOnClass"]
+    assert "is-favorited" in f["preOnClass"]
+
+
+def test_share_collect_unfavorite_confirmation_and_delete(rendered):
+    f = block(rendered, "shareFavorite")
+    assert f["dialogTitle"] == UNFAVORITE_TITLE
+    assert f["dialogMessage"] == UNFAVORITE_MESSAGE
+    assert f["confirmText"] == UNFAVORITE_TITLE
+    assert f["deleteAfterCancel"] == 0, "取消后不得发起取消收藏请求"
+    assert f["deletePath"] == "/api/favorites/7"
+    assert f["textAfterDelete"] == FAVORITE_TEXT
+    assert "is-favorited" not in f["classAfterDelete"]
+    assert f["actionCount"] == 1, "分享页操作区只有收藏一个按钮"
+
+
+def test_share_actions_rule(share_css):
+    actions = find_rule(share_css, ".share-actions")
+    assert actions is not None, "缺少 .share-actions"
+    assert prop(actions, "display:flex")
+    assert prop(actions, "gap:var(--sp-3)")
+    assert prop(actions, "margin-top:var(--sp-6)")
 
 
 def test_share_js_parses():

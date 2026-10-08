@@ -170,7 +170,7 @@ function buildUserMenu(user, header) {
   avatarBtn.className = 'avatar-btn';
   avatarBtn.setAttribute('aria-haspopup', 'menu');
   avatarBtn.setAttribute('aria-expanded', 'false');
-  avatarBtn.setAttribute('aria-label', '账号菜单');
+  avatarBtn.setAttribute('aria-label', `账号菜单：${String(user.username || '').trim()}`);
   avatarBtn.textContent = String(user.username || '').trim().charAt(0);
 
   const menu = document.createElement('div');
@@ -494,6 +494,46 @@ export function noteCard(note, { onOpen, onRemove } = {}) {
 }
 
 /* ==========================================================================
+   失效占位卡片（Phase 7 Task 3）：收藏 / 足迹中已不可访问的笔记
+   - 标题位置固定显示「内容已失效」，副文案显示作者名
+   - 只提供「移除」操作；标题不可点击（无 tabindex / role=link）
+   - 不展示状态徽标、摘要与时间，避免泄露已关闭分享的内容
+   ========================================================================== */
+
+export function staleCard({ title = '内容已失效', authorName = '', onOpen, onRemove } = {}) {
+  // 计划签名保留 onOpen；失效条目标题不可点击，因此不接受任何打开行为
+  void onOpen;
+
+  const card = document.createElement('article');
+  card.className = 'note-card paper is-stale';
+
+  const heading = document.createElement('h3');
+  heading.className = 'note-card-title';
+  heading.textContent = title;
+  card.appendChild(heading);
+
+  const author = document.createElement('p');
+  author.className = 'note-card-author';
+  author.textContent = authorName == null ? '' : String(authorName);
+  card.appendChild(author);
+
+  const actions = document.createElement('div');
+  actions.className = 'stale-actions';
+
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'btn btn-ghost note-remove';
+  remove.textContent = '移除';
+  remove.addEventListener('click', () => {
+    if (typeof onRemove === 'function') onRemove();
+  });
+  actions.appendChild(remove);
+  card.appendChild(actions);
+
+  return card;
+}
+
+/* ==========================================================================
    分页控件（Phase 5 Task 2）：第 X / Y 页 + 共 N 篇，边界禁用
    ========================================================================== */
 
@@ -543,4 +583,93 @@ export function pagination({ page = 1, pageSize = 10, total = 0, onChange } = {}
 
   wrap.append(prev, info, totalEl, next);
   return wrap;
+}
+
+/* ==========================================================================
+   收藏按钮（详情页与分享页共用，Phase 7 Task 2）
+   - 状态来源：登录态下渲染时并行查询 `GET /api/favorites?page_size=50` 定位当前笔记
+     （详情接口不返回收藏状态）；未登录不查询，避免 401 触发 UNAUTHORIZED 跳转。
+   - 未登录点击 → 跳 `/login?redirect=<回跳目标>`，不做静默失败。
+   - 已登录未收藏 → `POST /api/favorites`；返回 ALREADY_FAVORITED 时直接置为已收藏
+     并按后端 message 提示（不当作失败流程处理）。
+   - 已收藏 → 二次确认后 `DELETE /api/favorites/<id>`。
+   - 文案只取后端 message，不在前端编造中文提示。
+   ========================================================================== */
+
+const FAVORITE_TEXT = '收藏';
+const FAVORITED_TEXT = '已收藏';
+const UNFAVORITE_TITLE = '取消收藏';
+const UNFAVORITE_MESSAGE = '确定要取消收藏这篇笔记吗？';
+
+export function favoriteButton(note, { isFavorited = false, redirect = null } = {}) {
+  const data = note || {};
+  const noteId = data.id;
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-secondary favorite-btn';
+
+  let favorited = !!isFavorited;
+
+  const sync = () => {
+    btn.textContent = favorited ? FAVORITED_TEXT : FAVORITE_TEXT;
+    btn.classList.toggle('is-favorited', favorited);
+    btn.setAttribute('aria-pressed', favorited ? 'true' : 'false');
+  };
+  sync();
+
+  async function goLogin() {
+    const back = redirect
+      || (typeof location !== 'undefined' ? location.pathname + location.search : '/');
+    const { navigate } = await import('./router.js');   // 动态导入避免循环依赖
+    navigate(`/login?redirect=${encodeURIComponent(back)}`);
+  }
+
+  async function add() {
+    try {
+      await api.post('/api/favorites', { note_id: noteId }, { silent: true });
+      favorited = true;
+      sync();
+    } catch (err) {
+      if (err && err.code === 'ALREADY_FAVORITED') {
+        favorited = true;      // 已收藏不是失败：直接把按钮置为已收藏
+        sync();
+      }
+      if (err && err.message) toast(err.message);
+    }
+  }
+
+  async function remove() {
+    const confirmed = await confirmDialog({
+      title: UNFAVORITE_TITLE,
+      message: UNFAVORITE_MESSAGE,
+      confirmText: UNFAVORITE_TITLE,
+    });
+    if (!confirmed) return;
+    try {
+      await api.del(`/api/favorites/${noteId}`, { silent: true });
+      favorited = false;
+      sync();
+    } catch (err) {
+      if (err && err.message) toast(err.message);
+    }
+  }
+
+  btn.addEventListener('click', () => {
+    if (!store.isLoggedIn()) { goLogin(); return; }
+    if (favorited) remove();
+    else add();
+  });
+
+  if (store.isLoggedIn()) {
+    api.get('/api/favorites?page_size=50', { silent: true })
+      .then((list) => {
+        const items = (list && list.items) || [];
+        const hit = items.some((item) => item && item.note && item.note.id === noteId);
+        if (hit) { favorited = true; sync(); }
+      })
+      .catch(() => { /* 收藏状态查询失败不阻塞内容渲染 */ });
+  }
+
+  return btn;
 }

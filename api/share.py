@@ -89,6 +89,13 @@ def disable_share(note_id):
     return ok(None, "已关闭分享")
 
 
+def record_viewer_history(note):
+    """读分享成功后记录足迹；仅登录用户，匿名读取不产生任何记录。"""
+    viewer = current_user()
+    if viewer is not None:
+        db_module.touch_history(db_module.get_db(), viewer["id"], note["id"])
+
+
 @bp.get("/share/<token>")
 def read_shared_note(token):
     note, error = load_shared_note(token)
@@ -98,6 +105,7 @@ def read_shared_note(token):
     # 若不解锁，登录访客拿到正文后仍无法经 GET /api/notes/<id> 打开详情
     # （见 api/notes.py 的「非作者」分支）。仅凭猜 id 无法满足该条件。
     mark_share_unlocked(token)
+    record_viewer_history(note)
     return ok(share_note_payload(note, db_module.get_db()))
 
 
@@ -117,6 +125,7 @@ def verify_share_password(token):
     password = payload.get("password") or ""
     if note["share_password_hash"] is None:
         mark_share_unlocked(token)
+        record_viewer_history(note)
         return ok(share_note_payload(note, conn))
 
     if not verify_password(note["share_password_hash"], password):
@@ -125,4 +134,5 @@ def verify_share_password(token):
 
     clear_failures(conn, "share", token)
     mark_share_unlocked(token)
+    record_viewer_history(note)
     return ok(share_note_payload(note, conn))

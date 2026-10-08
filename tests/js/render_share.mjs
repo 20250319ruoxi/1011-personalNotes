@@ -67,6 +67,8 @@ let shareMode = 'ok';        // ok | locked | disabled | error
 let verifyMode = 'ok';       // ok | wrong | rate
 let shareFails = false;      // POST /notes/<id>/share 失败
 let lastSharePassword = null;
+let favoritesMode = 'empty'; // empty | has-note（收藏列表是否已含当前分享笔记）
+let favoritePost = 'ok';     // ok | already
 const fetchCalls = [];
 
 globalThis.fetch = async (path, opts = {}) => {
@@ -77,6 +79,19 @@ globalThis.fetch = async (path, opts = {}) => {
   const errBody = (code, message) => ({ json: async () => ({ code, message, data: null }) });
 
   if (url.startsWith('/api/auth/me')) return okBody({ user: null, csrf_token: null });
+
+  if (url.startsWith('/api/favorites')) {
+    if (method === 'POST') {
+      if (favoritePost === 'already') return errBody('ALREADY_FAVORITED', '已收藏过该笔记');
+      return okBody(null, '已收藏');
+    }
+    if (method === 'DELETE') return okBody(null, '已取消收藏');
+    const hit = favoritesMode === 'has-note';
+    return okBody({
+      items: hit ? [{ note: { id: 7 }, available: true }] : [],
+      total: hit ? 1 : 0, page: 1, page_size: 50,
+    });
+  }
 
   if (url.startsWith('/api/comments/')) {
     if (method === 'DELETE') return okBody(null, '评论已删除');
@@ -199,6 +214,13 @@ safe('sharePage', () => {
   sharePage.hasActions = !!field(appEl, '#share-actions');
   sharePage.actionsEmpty = field(appEl, '#share-actions')
     ? field(appEl, '#share-actions').children.length === 0 : null;
+  const actionsEl = field(appEl, '#share-actions');
+  sharePage.actionButtonTexts = actionsEl
+    ? all(actionsEl, 'button').map((b) => b.textContent.trim()) : null;
+  sharePage.actionButtonPressed = actionsEl
+    ? all(actionsEl, 'button').map((b) => b.getAttribute('aria-pressed')) : null;
+  sharePage.actionClasses = actionsEl
+    ? all(actionsEl, 'button').map((b) => b.className) : null;
   sharePage.hasComments = !!field(appEl, '#share-comments');
   sharePage.titleTag = document.title;
   sharePage.buttonTexts = all(appEl, 'button').map((b) => b.textContent.trim());
@@ -594,8 +616,123 @@ safe('detailMount', () => {
     .filter((c) => c.path.includes('/comments')).map((c) => c.path);
 });
 
+/* ==========================================================================
+   K. 分享页 · 收藏按钮（Phase 7 Task 2）
+   ========================================================================== */
+const shareFavorite = {};
+const flushDeep = async () => {
+  for (let i = 0; i < 8; i += 1) await tick();
+};
+/* 最小 DOM 双端不支持后代选择器，先取 #share-actions 再在其内部找 button */
+const favBtn = () => {
+  const box = field(appEl, '#share-actions');
+  if (!box) return null;
+  return all(box, 'button')
+    .find((b) => ['收藏', '已收藏'].includes(b.textContent.trim())) || null;
+};
+const favActions = () => {
+  const box = field(appEl, '#share-actions');
+  return box ? all(box, 'button') : [];
+};
+
+/* K-1 未登录：显示「收藏」，点击跳登录并带回跳目标；且不查询收藏列表 */
+store.setUser(null, null);
+favoritesMode = 'empty';
+await renderShare('ok');
+await flushDeep();
+safe('shareFavAnonRead', () => {
+  const btn = favBtn();
+  shareFavorite.anonText = btn ? btn.textContent.trim() : null;
+  shareFavorite.anonClass = btn ? btn.className : null;
+  shareFavorite.anonFavoriteRequests = fetchCalls
+    .filter((c) => c.path.startsWith('/api/favorites')).length;
+  historyCalls.length = 0;
+  if (btn) btn.click();
+});
+await flushDeep();
+safe('shareFavAnonNav', () => {
+  shareFavorite.anonNavUrl = historyCalls.length
+    ? historyCalls[historyCalls.length - 1].url : null;
+  shareFavorite.anonPostCalls = fetchCalls
+    .filter((c) => c.method === 'POST' && c.path.startsWith('/api/favorites')).length;
+});
+
+/* K-2 已登录且未收藏：点击 → POST /api/favorites → 「已收藏」+ .is-favorited */
+store.setUser({ id: 1, username: 'alice' }, 'csrf-1');
+favoritesMode = 'empty';
+await renderShare('ok');
+await flushDeep();
+safe('shareFavLoginRead', () => {
+  const btn = favBtn();
+  shareFavorite.loginText = btn ? btn.textContent.trim() : null;
+  shareFavorite.loginPressed = btn ? btn.getAttribute('aria-pressed') : null;
+  shareFavorite.loginFavoriteRequests = fetchCalls
+    .filter((c) => c.path.startsWith('/api/favorites?')).length;
+  if (btn) btn.click();
+});
+await flushDeep();
+safe('shareFavLoginPosted', () => {
+  const btn = favBtn();
+  shareFavorite.loginAfterText = btn ? btn.textContent.trim() : null;
+  shareFavorite.loginAfterClass = btn ? btn.className : null;
+  shareFavorite.loginAfterPressed = btn ? btn.getAttribute('aria-pressed') : null;
+  const post = fetchCalls.find((c) => c.method === 'POST' && c.path === '/api/favorites');
+  shareFavorite.postPath = post ? post.path : null;
+  shareFavorite.postBody = post ? post.body : null;
+});
+
+/* K-3 已登录且已在收藏列表：初始即「已收藏」 */
+favoritesMode = 'has-note';
+await renderShare('ok');
+await flushDeep();
+favoritesMode = 'empty';
+safe('shareFavPreOn', () => {
+  const btn = favBtn();
+  shareFavorite.preOnText = btn ? btn.textContent.trim() : null;
+  shareFavorite.preOnClass = btn ? btn.className : null;
+});
+
+/* K-4 已收藏 → 二次确认 → 取消不发请求 → 确认发 DELETE 并回到「收藏」 */
+favoritesMode = 'has-note';
+await renderShare('ok');
+await flushDeep();
+safe('shareFavUnfavOpen', () => { const b = favBtn(); if (b) b.click(); });
+await flushDeep();
+safe('shareFavUnfavDialog', () => {
+  const dialog = dialogRoot.querySelector('.dialog');
+  shareFavorite.dialogTitle = dialog ? dialog.querySelector('.dialog-title').textContent : null;
+  shareFavorite.dialogMessage = dialog ? dialog.querySelector('.dialog-message').textContent : null;
+  shareFavorite.confirmText = dialog
+    ? (all(dialog, 'button').find((b) => b.textContent.trim() === '取消收藏') || {}).textContent
+    : null;
+  const cancel = dialog ? all(dialog, 'button').find((b) => b.textContent.trim() === '取消') : null;
+  if (cancel) cancel.click();
+});
+await flushDeep();
+shareFavorite.deleteAfterCancel = fetchCalls
+  .filter((c) => c.method === 'DELETE' && c.path.startsWith('/api/favorites')).length;
+
+safe('shareFavUnfavReopen', () => { const b = favBtn(); if (b) b.click(); });
+await flushDeep();
+safe('shareFavUnfavConfirm', () => {
+  const dialog = dialogRoot.querySelector('.dialog');
+  const confirm = dialog
+    ? all(dialog, 'button').find((b) => b.textContent.trim() === '取消收藏') : null;
+  if (confirm) confirm.click();
+});
+await flushDeep();
+safe('shareFavUnfavRead', () => {
+  const del = fetchCalls
+    .find((c) => c.method === 'DELETE' && c.path.startsWith('/api/favorites/'));
+  shareFavorite.deletePath = del ? del.path : null;
+  const btn = favBtn();
+  shareFavorite.textAfterDelete = btn ? btn.textContent.trim() : null;
+  shareFavorite.classAfterDelete = btn ? btn.className : null;
+  shareFavorite.actionCount = favActions().length;
+});
+
 process.stdout.write(JSON.stringify({
   errors, sharePage, untitled, lock, lockWrong, lockRate, lockOk, expired, generic, routing,
   panelOff, panelOn, panelOnPw, panelEnable, panelCopy, panelCopyFail, panelUpdate, panelClose,
-  detailMount,
+  detailMount, shareFavorite,
 }) + '\n');

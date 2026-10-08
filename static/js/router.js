@@ -120,6 +120,13 @@ registerRoute('/notes/:id', async (root, params) => {
   renderNoteDetail(root, params);
 }, { requiresAuth: true });
 
+// 个人主页（Phase 7）：四个 Tab「个人信息 / 我的笔记 / 我的收藏 / 浏览足迹」，
+// Tab 状态同步到 ?tab=，刷新与回退都落在同一个 Tab。
+registerRoute('/me', async (root, params) => {
+  const { renderProfile } = await import('./profile.js');
+  renderProfile(root, params);
+}, { requiresAuth: true });
+
 // 公开分享页（Phase 6）：无需登录，按 token 拉取内容；设密时先渲染密码锁屏。
 registerRoute('/s/:token', async (root, params) => {
   const { renderSharePage } = await import('./share.js');

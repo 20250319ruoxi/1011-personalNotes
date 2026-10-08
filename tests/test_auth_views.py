@@ -190,10 +190,15 @@ def test_guard_redirects_anonymous_to_login_with_back_target(rendered):
 
 
 def test_unregistered_route_does_not_crash_guard(rendered):
-    """Phase 3 尚未注册 /me：守卫不得崩溃，落到「页面不存在」视图。"""
+    """未注册路由：守卫不得崩溃，落到「页面不存在」视图。
+
+    注：Phase 3 时曾用 /me 作为「未注册路由」探针；Phase 7 已注册 /me（requiresAuth），
+    因此探针改为真正未注册的 `/__not-a-route__`。`/me` 自身的守卫行为见
+    `tests/test_profile_frontend.py::test_me_route_requires_auth`。
+    """
     assert "missing" not in rendered["errors"], rendered["errors"]
     missing = block(rendered, "missing")
-    assert missing["url"] == "/me"
+    assert missing["url"] == "/__not-a-route__"
     assert "empty-state" in missing["html"]
     assert "返回首页" in missing["html"]
 

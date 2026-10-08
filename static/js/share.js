@@ -5,7 +5,7 @@
 import { api } from './api.js';
 import { navigate } from './router.js';
 import { renderMarkdown } from './markdown.js';
-import { confirmDialog, formatDate, skeleton, toast } from './ui.js';
+import { confirmDialog, favoriteButton, formatDate, skeleton, toast } from './ui.js';
 
 const SITE_TITLE = '个人笔记';
 const UNTITLED = '无标题';
@@ -148,10 +148,11 @@ function renderShareArticle(page, data, token) {
   else body.textContent = '（空白笔记）';
   article.appendChild(body);
 
-  // 收藏按钮由 Phase 7 插入此容器
+  // 收藏按钮（Phase 7 Task 2）：读者视角的唯一操作；未登录点击跳登录并带回跳目标
   const actions = document.createElement('div');
   actions.className = 'share-actions';
   actions.id = 'share-actions';
+  actions.appendChild(favoriteButton(note, { redirect: `/s/${token}` }));
   article.appendChild(actions);
 
   // 评论区容器：由 comments.js 渲染（两页共用同一组件）

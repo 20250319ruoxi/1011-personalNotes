@@ -237,3 +237,84 @@ def list_comments(conn, note_id, page=1, page_size=10):
         (note_id, page_size, (page - 1) * page_size),
     ).fetchall()
     return rows, total
+
+
+# ---------------------------------------------------------------------------
+# 收藏与浏览足迹（Phase 7）
+# ---------------------------------------------------------------------------
+
+def note_is_viewable(conn, note, viewer_id):
+    """viewer_id 为 None 表示匿名。"""
+    if note is None or note["is_deleted"]:
+        return False
+    if viewer_id is not None and note["user_id"] == viewer_id:
+        return True
+    return note["status"] == "public" and note["share_token"] is not None
+
+
+def add_favorite(conn, user_id, note_id):
+    cursor = conn.execute(
+        "INSERT OR IGNORE INTO favorites (user_id, note_id, created_at) VALUES (?, ?, ?)",
+        (user_id, note_id, now_iso()),
+    )
+    conn.commit()
+    return cursor.rowcount > 0
+
+
+def remove_favorite(conn, user_id, note_id):
+    cursor = conn.execute("DELETE FROM favorites WHERE user_id = ? AND note_id = ?",
+                          (user_id, note_id))
+    conn.commit()
+    return cursor.rowcount > 0
+
+
+def is_favorited(conn, user_id, note_id):
+    return conn.execute("SELECT 1 FROM favorites WHERE user_id = ? AND note_id = ?",
+                        (user_id, note_id)).fetchone() is not None
+
+
+def list_favorites(conn, user_id, page=1, page_size=10):
+    total = conn.execute("SELECT COUNT(*) AS n FROM favorites WHERE user_id = ?",
+                         (user_id,)).fetchone()["n"]
+    rows = conn.execute(
+        "SELECT f.created_at AS favorited_at, n.*, u.username AS author_username, "
+        "u.avatar AS author_avatar FROM favorites f "
+        "JOIN notes n ON n.id = f.note_id JOIN users u ON u.id = n.user_id "
+        "WHERE f.user_id = ? ORDER BY f.created_at DESC, f.id DESC LIMIT ? OFFSET ?",
+        (user_id, page_size, (page - 1) * page_size),
+    ).fetchall()
+    return rows, total
+
+
+def touch_history(conn, user_id, note_id):
+    conn.execute(
+        "INSERT INTO view_history (user_id, note_id, viewed_at) VALUES (?, ?, ?) "
+        "ON CONFLICT(user_id, note_id) DO UPDATE SET viewed_at = excluded.viewed_at",
+        (user_id, note_id, now_iso()),
+    )
+    conn.commit()
+
+
+def list_history(conn, user_id, page=1, page_size=10):
+    total = conn.execute("SELECT COUNT(*) AS n FROM view_history WHERE user_id = ?",
+                         (user_id,)).fetchone()["n"]
+    rows = conn.execute(
+        "SELECT h.viewed_at AS viewed_at, n.*, u.username AS author_username, "
+        "u.avatar AS author_avatar FROM view_history h "
+        "JOIN notes n ON n.id = h.note_id JOIN users u ON u.id = n.user_id "
+        "WHERE h.user_id = ? ORDER BY h.viewed_at DESC, h.id DESC LIMIT ? OFFSET ?",
+        (user_id, page_size, (page - 1) * page_size),
+    ).fetchall()
+    return rows, total
+
+
+def delete_history_item(conn, user_id, note_id):
+    cursor = conn.execute("DELETE FROM view_history WHERE user_id = ? AND note_id = ?",
+                          (user_id, note_id))
+    conn.commit()
+    return cursor.rowcount > 0
+
+
+def clear_history(conn, user_id):
+    conn.execute("DELETE FROM view_history WHERE user_id = ?", (user_id,))
+    conn.commit()

@@ -6,7 +6,7 @@ import { navigate } from './router.js';
 import { renderMarkdown } from './markdown.js';
 import { renderComments } from './comments.js';
 import { renderSharePanel } from './share.js';
-import { confirmDialog, emptyState, formatDate, noteCard, pagination, skeleton, toast } from './ui.js';
+import { confirmDialog, emptyState, favoriteButton, formatDate, noteCard, pagination, skeleton, toast } from './ui.js';
 
 const PAGE_SIZE = 10;
 
@@ -152,10 +152,18 @@ function buildToolbar(query) {
 }
 
 /* ==========================================================================
-   卡片网格（Phase 7 的 /me「我的笔记」将复用本函数）
+   卡片网格（Phase 7 的 /me「我的笔记」复用本函数）
+   默认行为与 /notes 完全一致；/me 通过 options 覆盖「翻页」与「清除筛选」的落点，
+   从而在不 fork 第二份网格的前提下保持自己的 URL。
    ========================================================================== */
 
-export function renderNoteGrid(container, query) {
+export function renderNoteGrid(container, query, options = {}) {
+  const opts = {
+    onPageChange: (next) => navigate(listPath({ ...query, page: next })),
+    onClearFilters: () => navigate('/notes'),
+    ...options,
+  };
+
   const region = document.createElement('div');
   region.className = 'note-content';
   container.appendChild(region);
@@ -166,7 +174,7 @@ export function renderNoteGrid(container, query) {
   api.get(`/api/notes?${apiQuery(query)}`)
     .then((data) => {
       if (cancelled) return;
-      paintGrid(region, query, data);
+      paintGrid(region, query, data, opts);
     })
     .catch(() => {
       // 错误文案由 api.js 统一以 toast 展示后端 message
@@ -176,7 +184,7 @@ export function renderNoteGrid(container, query) {
   return () => { cancelled = true; };
 }
 
-function paintGrid(region, query, data) {
+function paintGrid(region, query, data, opts) {
   region.textContent = '';
 
   const items = (data && data.items) || [];
@@ -189,7 +197,7 @@ function paintGrid(region, query, data) {
       region.appendChild(emptyState({
         title: '没有找到符合条件的笔记',
         actionText: '清除筛选',
-        onAction: () => navigate('/notes'),
+        onAction: opts.onClearFilters,
       }));
     } else {
       region.appendChild(emptyState({
@@ -215,7 +223,7 @@ function paintGrid(region, query, data) {
     page,
     pageSize,
     total,
-    onChange: (next) => navigate(listPath({ ...query, page: next })),
+    onChange: opts.onPageChange,
   }));
 }
 
@@ -319,6 +327,9 @@ function paintDetail(page, note) {
 
   const actions = document.createElement('div');
   actions.className = 'detail-actions';
+
+  // 收藏 / 已收藏（Phase 7 Task 2）：排在编辑与删除之前
+  actions.appendChild(favoriteButton(note));
 
   const edit = document.createElement('button');
   edit.type = 'button';

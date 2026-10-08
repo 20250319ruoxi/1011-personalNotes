@@ -101,8 +101,9 @@ def prop(body: str, declaration: str) -> bool:
 # Flask：SPA 兜底与入口装配
 # --------------------------------------------------------------------------
 
-@pytest.mark.parametrize("path", ["/", "/about", "/login", "/notes/new"])
+@pytest.mark.parametrize("path", ["/", "/about", "/login", "/notes/new", "/me"])
 def test_spa_routes_serve_app_shell(client, path):
+    """SPA 直链刷新兜底：新注册的 /me（Phase 7）也必须返回应用外壳而非 404。"""
     resp = client.get(path)
     assert resp.status_code == 200
     html = resp.get_data(as_text=True)

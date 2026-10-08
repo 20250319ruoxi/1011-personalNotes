@@ -98,12 +98,14 @@ guard.guardRedirectUrl = guardCall ? guardCall.url : null;
 guard.method = guardCall ? guardCall.method : null;
 location.pathname = '/'; location.search = ''; location.hash = '';
 
-/* 未注册路由（含 /me）：登录守卫不得崩溃，落到「页面不存在」视图 */
+/* 未注册路由：登录守卫不得崩溃，落到「页面不存在」视图。
+   注意：Phase 7 注册了 /me，因此这里改用真正未注册的字面路径。
+   /me 自身的守卫行为由 tests/test_profile_frontend.py::test_me_route_requires_auth 覆盖。 */
 const missing = {};
 store.setUser(null, null);
 historyCalls.length = 0;
 try {
-  await navigate('/me');
+  await navigate('/__not-a-route__');
 } catch (err) {
   errors.missing = err.message.split('\n')[0];
 }
