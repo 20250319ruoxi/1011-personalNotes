@@ -1,6 +1,9 @@
 /* ui.js — 通用组件唯一来源：顶栏、toast、二次确认弹窗、骨架片、空态、日期与转义。
    约束：不使用内联 style 与内联事件（Phase 8 启用不含 'unsafe-inline' 的严格 CSP）。 */
 
+import { api } from './api.js';
+import { store } from './store.js';
+
 const TOAST_DURATION = 2500;      // 自动消失时长（悬停暂停）
 const TOAST_LEAVE_MS = 200;       // 离场动画时长
 
@@ -139,11 +142,12 @@ export function confirmDialog({
 }
 
 /* ==========================================================================
-   顶栏：未登录态（登录 / 注册 / 关于）+ 移动抽屉 + 滚动阴影
-   已登录态由 Phase 3 Task 4 切换为「写笔记 / 我的主页 / 头像菜单」
+   顶栏：未登录态「登录 / 注册 / 关于」+ 已登录态「写笔记 / 我的主页 / 头像菜单」
+   + 移动抽屉 + 滚动阴影
    ========================================================================== */
 
 const GUEST_LINKS = [['/login', '登录'], ['/register', '注册'], ['/about', '关于']];
+const AUTH_LINKS = [['/notes/new', '写笔记'], ['/me', '我的主页'], ['/about', '关于']];
 
 function buildNavLink(href, text, activePath) {
   const link = document.createElement('a');
@@ -154,6 +158,94 @@ function buildNavLink(href, text, activePath) {
     link.className = 'is-active';
   }
   return link;
+}
+
+/* 已登录态头像 + 下拉菜单（个人主页 / 退出登录） */
+function buildUserMenu(user, header) {
+  const wrap = document.createElement('div');
+  wrap.className = 'nav-user';
+
+  const avatarBtn = document.createElement('button');
+  avatarBtn.type = 'button';
+  avatarBtn.className = 'avatar-btn';
+  avatarBtn.setAttribute('aria-haspopup', 'menu');
+  avatarBtn.setAttribute('aria-expanded', 'false');
+  avatarBtn.setAttribute('aria-label', '账号菜单');
+  avatarBtn.textContent = String(user.username || '').trim().charAt(0);
+
+  const menu = document.createElement('div');
+  menu.className = 'avatar-menu';
+  menu.setAttribute('role', 'menu');
+
+  const profileLink = document.createElement('a');
+  profileLink.setAttribute('role', 'menuitem');
+  profileLink.href = '/me';
+  profileLink.textContent = '个人主页';
+
+  const logoutBtn = document.createElement('button');
+  logoutBtn.type = 'button';
+  logoutBtn.className = 'avatar-menu-item';
+  logoutBtn.setAttribute('role', 'menuitem');
+  logoutBtn.textContent = '退出登录';
+
+  menu.append(profileLink, logoutBtn);
+
+  const isOpen = () => menu.classList.contains('is-open');
+  const setOpen = (open) => {
+    menu.classList.toggle('is-open', open);
+    avatarBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      const first = menu.querySelector('a, button');
+      if (first && typeof first.focus === 'function') first.focus();
+    }
+  };
+
+  avatarBtn.addEventListener('click', () => setOpen(!isOpen()));
+
+  menu.addEventListener('click', (event) => {
+    if (event.target && event.target.tagName === 'A') setOpen(false);
+  });
+
+  logoutBtn.addEventListener('click', async () => {
+    setOpen(false);
+    const confirmed = await confirmDialog({
+      title: '退出登录',
+      message: '确定要退出当前账号吗？',
+      confirmText: '退出登录',
+    });
+    if (!confirmed) return;
+    try {
+      await api.post('/api/auth/logout');
+    } catch (_) { /* 已登出或网络异常，仍按登出处理 */ }
+    store.setUser(null, null);
+    toast('已退出登录', 'success');
+    const { navigate } = await import('./router.js');   // 动态导入避免循环依赖
+    navigate('/');
+  });
+
+  // Esc 关闭并把焦点交回头像按钮
+  wrap.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && isOpen()) {
+      event.preventDefault();
+      setOpen(false);
+      avatarBtn.focus();
+    }
+  });
+
+  // 点击菜单外部关闭；wrap 已被移除时自动解绑，避免监听器累积
+  const onDocumentClick = (event) => {
+    if (header && !header.contains(wrap)) {
+      document.removeEventListener('click', onDocumentClick);
+      return;
+    }
+    if (!isOpen()) return;
+    if (wrap.contains(event.target)) return;
+    setOpen(false);
+  };
+  document.addEventListener('click', onDocumentClick);
+
+  wrap.append(avatarBtn, menu);
+  return wrap;
 }
 
 export function renderHeader(user, activePath = '/') {
@@ -194,7 +286,7 @@ export function renderHeader(user, activePath = '/') {
 
   const links = document.createElement('ul');
   links.className = 'nav-links';
-  GUEST_LINKS.forEach(([href, text]) => {
+  (user ? AUTH_LINKS : GUEST_LINKS).forEach(([href, text]) => {
     const li = document.createElement('li');
     li.appendChild(buildNavLink(href, text, activePath));
     links.appendChild(li);
@@ -202,7 +294,7 @@ export function renderHeader(user, activePath = '/') {
   drawer.appendChild(links);
 
   if (user) {
-    // Phase 3 在此切换为「写笔记 / 我的主页 / 头像菜单」
+    drawer.appendChild(buildUserMenu(user, header));
   }
 
   const isOpen = () => drawer.classList.contains('is-open');

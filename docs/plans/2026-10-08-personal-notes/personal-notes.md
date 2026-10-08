@@ -121,7 +121,8 @@
 **File:** [phase-3-auth.md](phase-3-auth.md)
 **Goal:** 完成注册、登录、登出、当前用户、资料与改密，以及 CSRF/Origin 防护，前端交付登录注册页与登录守卫。
 **Tasks:** 6
-**Status:** Not Started
+**Status:** Done
+**Completion:** √
 
 ### Phase 4: 笔记后端
 **File:** [phase-4-notes-backend.md](phase-4-notes-backend.md)

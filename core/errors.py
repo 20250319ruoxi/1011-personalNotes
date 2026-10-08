@@ -21,6 +21,8 @@ ERRORS = {
     "UPLOAD_TYPE_INVALID":     (400, "仅支持 JPG、PNG、GIF、WebP 格式的图片"),
     "STORAGE_QUOTA_EXCEEDED":  (413, "存储空间不足，请先清理历史图片"),
     "ALREADY_FAVORITED":       (409, "已收藏过该笔记"),
+    "METHOD_NOT_ALLOWED":      (405, "请求方法不被支持"),
+    "UNSUPPORTED_MEDIA_TYPE":  (415, "请求格式不受支持"),
     "INTERNAL_ERROR":          (500, "服务器开小差了，请稍后重试"),
 }
 

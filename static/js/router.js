@@ -3,6 +3,7 @@ import { api, bindErrorToast } from './api.js';
 import { toast, renderHeader } from './ui.js';
 
 const routes = [];   // { pattern, requiresAuth, load }
+let bootstrapped = false;   // 会话恢复（/auth/me）只执行一次
 
 export function registerRoute(pattern, load, { requiresAuth = false } = {}) {
   routes.push({ pattern, requiresAuth, load });
@@ -30,7 +31,20 @@ export async function navigate(path, { replace = false } = {}) {
   await render();
 }
 
+async function bootstrap() {
+  try {
+    const data = await api.get('/api/auth/me', { silent: true });
+    store.setUser(data.user, data.csrf_token);
+  } catch (_) {
+    store.setUser(null, null);
+  }
+}
+
 async function render() {
+  if (!bootstrapped) {          // 首次渲染前先做一次会话恢复（/auth/me 引导）
+    bootstrapped = true;
+    await bootstrap();
+  }
   const root = document.getElementById('app');
   const found = match(location.pathname) || { route: notFoundRoute, params: {} };
   const { route, params } = found;
@@ -68,6 +82,13 @@ registerRoute('/about', async (root) => {
   const { renderAbout } = await import('./about.js');
   renderAbout(root);
 });
+
+// 登录 / 注册页（Phase 3）
+registerRoute('/login', async (root) => (await import('./auth.js')).renderLogin(root));
+registerRoute('/register', async (root) => (await import('./auth.js')).renderRegister(root));
+
+// 登录态变化时只重绘顶栏，避免整页重渲染
+store.onChange(() => renderHeader(store.user, location.pathname));
 
 bindErrorToast(toast);
 window.addEventListener('popstate', render);

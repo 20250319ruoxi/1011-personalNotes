@@ -19,6 +19,10 @@ def create_app(config_object=Config):
     app.json.sort_keys = False
 
     db_module.init_app(app)
+
+    from core import auth as auth_module
+    auth_module.init_app(app)
+
     register_blueprints(app)
     register_error_handlers(app)
     register_spa_fallback(app)
@@ -53,6 +57,12 @@ def register_error_handlers(app):
                 return fail("NOT_FOUND")
             if exc.code == 413:
                 return fail("UPLOAD_TOO_LARGE")
+            if exc.code == 400:
+                return fail("INVALID_PARAM")
+            if exc.code == 405:
+                return fail("METHOD_NOT_ALLOWED")
+            if exc.code == 415:
+                return fail("UNSUPPORTED_MEDIA_TYPE")
             return fail("INTERNAL_ERROR", http_status=exc.code)
         # /static/* 的 404 不得复用 SPA 兜底：静态资源缺失必须保持 404，
         # 否则拼错的资源路径会静默返回 index.html（catch-all 不得吞 /static/*）。

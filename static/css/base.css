@@ -388,6 +388,76 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
 }
 
 /* ==========================================================================
+   顶栏已登录态：头像按钮 + 下拉菜单（写笔记 / 我的主页 / 头像菜单）
+   ========================================================================== */
+
+.nav-user { position: relative; }
+
+.avatar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: var(--bd);
+  border-radius: 50%;
+  background: var(--c-accent);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.avatar-btn:hover { background: var(--c-primary); }
+
+.avatar-menu {
+  position: absolute;
+  top: calc(100% + var(--sp-2));
+  right: 0;
+  z-index: 40;
+  min-width: 160px;
+  display: none;
+  flex-direction: column;
+  padding: var(--sp-2);
+  background: var(--c-surface);
+  border: var(--bd);
+  border-radius: var(--r-1);
+  box-shadow: var(--sd-float);
+}
+.avatar-menu.is-open { display: flex; }
+
+.avatar-menu a,
+.avatar-menu button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-1);
+  color: var(--c-text);
+  font-size: var(--fs-base);
+  cursor: pointer;
+}
+.avatar-menu a:hover,
+.avatar-menu button:hover { background: var(--c-page); color: var(--c-link-hover); }
+
+@media (max-width: 768px) {
+  /* ≤768px：头像菜单并入抽屉，头像按钮隐藏，菜单项常驻 */
+  .nav-user .avatar-btn { display: none; }
+  .avatar-menu {
+    position: static;
+    display: flex;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+/* ==========================================================================
    全局 toast：右上角，2.5s 自动消失（悬停暂停由 ui.js 控制），多条堆叠
    ========================================================================== */
 

@@ -91,6 +91,14 @@ export class Element {
     return child;
   }
   append(...nodes) { nodes.forEach((n) => this.appendChild(n)); }
+  insertBefore(node, ref) {
+    node.parentNode = this;
+    const idx = ref ? this.children.indexOf(ref) : -1;
+    if (idx >= 0) this.children.splice(idx, 0, node);
+    else this.children.push(node);
+    this._rawHtml = null;
+    return node;
+  }
   remove() {
     if (this.parentNode) {
       const i = this.parentNode.children.indexOf(this);
@@ -113,6 +121,15 @@ export class Element {
     return out;
   }
   querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
+  contains(node) {
+    if (node == null) return false;
+    let cur = node;
+    while (cur) {
+      if (cur === this) return true;
+      cur = cur.parentNode;
+    }
+    return false;
+  }
 
   /* ---- 事件 ---- */
   addEventListener(type, handler) {
@@ -232,6 +249,11 @@ class Document {
     const list = this._listeners.get(type) || [];
     const i = list.indexOf(fn);
     if (i >= 0) list.splice(i, 1);
+  }
+  dispatchEvent(event) {
+    const list = this._listeners.get(event.type) || [];
+    list.slice().forEach((fn) => fn.call(this, event));
+    return true;
   }
 }
 

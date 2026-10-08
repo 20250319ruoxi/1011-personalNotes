@@ -60,3 +60,23 @@ def get_user_by_email(conn, email):
 
 def get_user_by_username(conn, username):
     return conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+
+
+def update_user_profile(conn, user_id, username=None, bio=None, avatar=None):
+    fields, values = [], []
+    if username is not None:
+        fields.append("username = ?"); values.append(username)
+    if bio is not None:
+        fields.append("bio = ?"); values.append(bio)
+    if avatar is not None:
+        fields.append("avatar = ?"); values.append(avatar)
+    if not fields:
+        return
+    values.append(user_id)
+    conn.execute(f"UPDATE users SET {', '.join(fields)} WHERE id = ?", values)
+    conn.commit()
+
+
+def update_user_password(conn, user_id, password_hash):
+    conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, user_id))
+    conn.commit()

@@ -1,1 +1,81 @@
-/* auth.css — 登录/注册页与表单状态样式（Phase 3 实现）。Phase 1 仅占位，避免 404 影响排查。 */
+/* auth.css — 登录 / 注册页与表单状态样式（Phase 3）。
+   颜色与间距只引用 base.css 设计令牌，禁止硬编码色值。 */
+
+.auth-page {
+  min-height: calc(100vh - var(--header-h));
+  display: grid;
+  place-items: center;
+  padding: var(--sp-8) var(--gutter);
+  background: var(--c-page);
+}
+
+.auth-card {
+  width: min(420px, 100%);
+  background: var(--c-surface);
+  border-radius: var(--r-2);
+  box-shadow: var(--sd-card);
+  border: var(--bd);
+  padding: var(--sp-8);
+}
+
+.auth-card h1 {
+  font-size: var(--fs-h2);
+  text-align: center;
+  margin-bottom: var(--sp-6);
+}
+
+.auth-card .field { margin-top: var(--sp-4); }
+
+.auth-card .field > label {
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted-strong);
+}
+
+.auth-card .field input {
+  height: 44px;
+  /* 交互组件边界使用 --c-border-strong（Phase 2 对比度加固，≥3:1），
+     而非计划书写的 --c-border，以免回退无障碍边界对比度。 */
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-1);
+}
+
+.auth-card .field input:focus {
+  border-color: var(--c-primary-hover);
+}
+
+/* 字段错误：红色下划线（描边）+ 错误文案；
+   文案使用 --c-danger-strong（12px 文本需 ≥4.5:1），沿用 base.css 的对比度加固取值。 */
+.field input.is-invalid { border-color: var(--c-danger); }
+
+.auth-card .field-error {
+  font-size: var(--fs-xs);
+  color: var(--c-danger-strong);
+  min-height: 1em;
+}
+
+.auth-card .btn-primary {
+  width: 100%;
+  height: 44px;
+  margin-top: var(--sp-6);
+}
+
+/* 提交 loading：按钮禁用 + 转圈 */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: auth-spin .6s linear infinite;
+}
+
+@keyframes auth-spin { to { transform: rotate(360deg); } }
+
+.auth-switch {
+  margin-top: var(--sp-6);
+  text-align: center;
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted-strong);
+}
+
+.auth-switch-link { color: var(--c-info-strong); }
