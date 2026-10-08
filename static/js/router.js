@@ -57,11 +57,16 @@ const notFoundRoute = {
   },
 };
 
-// Phase 1 占位视图，Phase 2 由 static/js/home.js 替换
+// 主页与关于页：Phase 2 交付静态视图
 // 注意：不得使用内联 style 与内联事件，Phase 8 会启用不含 'unsafe-inline' 的严格 CSP
-registerRoute('/', (root) => {
-  root.innerHTML = '<section class="paper paper-padded">'
-    + '<h1>个人笔记</h1><p>骨架就绪，主页视图将在 Phase 2 实现。</p></section>';
+registerRoute('/', async (root) => {
+  const { renderHome } = await import('./home.js');
+  renderHome(root);
+});
+
+registerRoute('/about', async (root) => {
+  const { renderAbout } = await import('./about.js');
+  renderAbout(root);
 });
 
 bindErrorToast(toast);

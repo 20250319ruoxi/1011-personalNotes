@@ -18,6 +18,18 @@
   --c-danger:      #C25E4E;
   --c-success:     #6B8E5A;
 
+  /* 对比度修正令牌：危险/成功/信息文字与交互描边（实测见 tests/manual/check_contrast.py） */
+  --c-danger-strong:  #9E4436;   /* 白底 6.30:1 */
+  --c-success-strong: #4F6B41;   /* 白字 5.98:1 */
+  --c-info-strong:    #8A6D42;   /* 白字 4.83:1；页面底链接 4.56:1 */
+  --c-link-hover:     #6E5228;   /* 页面底 6.83:1 */
+  --c-border-strong:  #A6835A;   /* 页面底 3.29:1，交互组件边界 */
+
+  /* 遮罩与图片上文字（home.css 移动端 hero 使用，避免在页面 css 硬编码色值） */
+  --c-overlay:        rgba(61, 54, 48, .35);
+  --c-on-image:       #FFFFFF;
+  --c-on-image-muted: rgba(255, 255, 255, .88);
+
   /* 字体 */
   --font-sans: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   --fs-xs: 12px; --fs-sm: 14px; --fs-base: 16px;
@@ -70,8 +82,8 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 img, svg { max-width: 100%; display: block; }
 hr { border: 0; border-top: var(--bd); margin: var(--sp-6) 0; }
 
-a { color: var(--c-primary-hover); text-decoration: none; transition: color .15s; }
-a:hover { color: var(--c-primary); }
+a { color: var(--c-info-strong); text-decoration: none; transition: color .15s; }
+a:hover { color: var(--c-link-hover); }
 
 button, input, textarea, select { font: inherit; color: inherit; }
 
@@ -103,8 +115,8 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
 .text-muted { color: var(--c-text-muted-strong); font-size: var(--fs-sm); }
 
 /* ==========================================================================
-   按钮：主 / 次 / 危险
-   主按钮文字用 var(--c-text) 且底色 var(--c-primary-hover)，以满足 4.5:1 对比度
+   按钮：主 / 次 / 幽灵 / 危险
+   主按钮静止态用 --c-accent、hover 用 --c-primary，文字均为 --c-text，两态对比度均 ≥4.5:1
    ========================================================================== */
 
 .btn {
@@ -128,26 +140,34 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
 .btn:disabled, .btn[aria-disabled="true"] { opacity: .55; cursor: not-allowed; }
 
 .btn-primary {
-  background: var(--c-primary-hover);
-  border-color: var(--c-primary-hover);
+  background: var(--c-accent);
+  border-color: var(--c-accent);
   color: var(--c-text);
 }
 .btn-primary:hover { background: var(--c-primary); border-color: var(--c-primary); color: var(--c-text); }
-.btn-primary:active { filter: brightness(.95); }
+.btn-primary:active { background: var(--c-primary); border-color: var(--c-primary); color: var(--c-text); }
 
 .btn-secondary {
   background: transparent;
-  border-color: var(--c-primary);
+  border-color: var(--c-border-strong);
   color: var(--c-text);
 }
-.btn-secondary:hover { background: var(--c-surface); border-color: var(--c-primary-hover); color: var(--c-text); }
+.btn-secondary:hover { background: var(--c-surface); border-color: var(--c-link-hover); color: var(--c-text); }
+
+/* 幽灵按钮：hero 的「了解更多」使用，描边 + 透明底 */
+.btn-ghost {
+  background: transparent;
+  border-color: var(--c-border-strong);
+  color: var(--c-text);
+}
+.btn-ghost:hover { background: var(--c-surface); border-color: var(--c-link-hover); color: var(--c-text); }
 
 .btn-danger {
   background: var(--c-surface);
-  border-color: var(--c-danger);
-  color: var(--c-danger);
+  border-color: var(--c-danger-strong);
+  color: var(--c-danger-strong);
 }
-.btn-danger:hover { background: var(--c-danger); color: var(--c-surface); }
+.btn-danger:hover { background: var(--c-danger-strong); border-color: var(--c-danger-strong); color: var(--c-surface); }
 
 .btn-block { width: 100%; }
 
@@ -167,7 +187,7 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   min-height: 44px;
   padding: var(--sp-2) var(--sp-3);
   background: var(--c-surface);
-  border: var(--bd);
+  border: 1px solid var(--c-border-strong);
   border-radius: var(--r-1);
   transition: border-color .15s, box-shadow .15s;
 }
@@ -182,10 +202,10 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
 
 .field-hint { font-size: var(--fs-xs); color: var(--c-text-muted-strong); }
 
-.field-error { font-size: var(--fs-xs); color: var(--c-danger); }
+.field-error { font-size: var(--fs-xs); color: var(--c-danger-strong); }
 
 /* 字段级错误：红色下划线 + 错误文案 */
-.field.is-invalid input, .field.is-invalid textarea, .field.is-invalid select { border-color: var(--c-danger); }
+.field.is-invalid input, .field.is-invalid textarea, .field.is-invalid select { border-color: var(--c-danger-strong); }
 
 /* ==========================================================================
    卡片
@@ -230,7 +250,7 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
 }
 
 /* ==========================================================================
-   顶栏骨架：未登录 / 已登录两态由 Phase 2、Phase 3 填充
+   顶栏：未登录态由 Phase 2 交付，已登录态由 Phase 3 填充
    ========================================================================== */
 
 .app-header {
@@ -240,6 +260,9 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   top: 0;
   z-index: 100;
 }
+
+/* 滚动后加阴影（由 ui.js 监听 scroll 切换该类） */
+.app-header.is-scrolled { box-shadow: var(--sd-card); }
 
 .app-nav {
   display: flex;
@@ -265,6 +288,9 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
 
 .nav-drawer { display: flex; align-items: center; gap: var(--sp-6); }
 
+/* 移动端抽屉遮罩：桌面始终隐藏 */
+.nav-scrim { display: none; }
+
 .nav-links, .nav-user {
   display: flex;
   align-items: center;
@@ -276,11 +302,13 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   align-items: center;
   min-height: 44px;
   padding: 0 var(--sp-2);
-  color: var(--c-text);
+  color: var(--c-text-muted-strong);
   font-size: var(--fs-base);
+  transition: color .15s;
 }
+.nav-links a:hover, .nav-user a:hover { color: var(--c-link-hover); }
 .nav-links a.is-active, .nav-links a[aria-current="page"] {
-  color: var(--c-primary-hover);
+  color: var(--c-link-hover);
   box-shadow: inset 0 -2px 0 var(--c-accent);
 }
 
@@ -319,21 +347,38 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
 @media (max-width: 768px) {
   .nav-toggle { display: inline-flex; }
 
-  .nav-drawer {
+  /* 遮罩：从顶栏下方铺满视口，点击可关闭抽屉 */
+  .nav-scrim {
     display: none;
+    position: fixed;
+    inset: var(--header-h) 0 0 0;
+    z-index: 30;
+    background: rgba(61, 54, 48, .32);
+  }
+  .nav-scrim.is-visible { display: block; }
+
+  /* 抽屉：从右侧滑出，宽度 min(280px, 80vw) */
+  .nav-drawer {
+    position: fixed;
+    top: var(--header-h);
+    right: 0;
+    bottom: 0;
+    z-index: 31;
+    width: min(280px, 80vw);
+    display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: 0;
-    position: absolute;
-    top: var(--header-h);
-    left: 0;
-    right: 0;
+    overflow-y: auto;
     padding: var(--sp-2) var(--gutter) var(--sp-4);
     background: var(--c-surface);
-    border-bottom: var(--bd);
+    border-left: var(--bd);
     box-shadow: var(--sd-float);
+    transform: translateX(100%);
+    visibility: hidden;
+    transition: transform .2s ease-out, visibility .2s;
   }
-  .nav-drawer.is-open { display: flex; }
+  .nav-drawer.is-open { transform: translateX(0); visibility: visible; }
 
   .nav-links, .nav-user { flex-direction: column; align-items: stretch; gap: 0; }
   .nav-links a, .nav-user a {
@@ -363,16 +408,16 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   padding: var(--sp-3) var(--sp-4);
   border-radius: var(--r-1);
   box-shadow: var(--sd-float);
-  background: var(--c-primary);
+  background: var(--c-info-strong);
   color: var(--c-surface);
   font-size: var(--fs-sm);
   pointer-events: auto;
   animation: toast-in .2s ease-out;
 }
 
-.toast-success { background: var(--c-success); }
-.toast-error   { background: var(--c-danger); }
-.toast-info    { background: var(--c-primary); }
+.toast-success { background: var(--c-success-strong); }
+.toast-error   { background: var(--c-danger-strong); }
+.toast-info    { background: var(--c-info-strong); }
 
 .toast.is-leaving { animation: toast-out .2s ease-in forwards; }
 

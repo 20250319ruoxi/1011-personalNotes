@@ -1,1 +1,162 @@
-/* home.css — 主页与 hero 样式（Phase 2 实现）。Phase 1 仅占位，避免 404 影响排查。 */
+/* home.css — 主页样式（hero + 特性条）
+   色值只引用 base.css 令牌；布局与断点对齐 phase-2-home-task 说明与设计稿。 */
+
+/* ==========================================================================
+   Hero：桌面文案左 45% / 照片右 55%
+   ========================================================================== */
+
+.hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: 45% 55%;
+  align-items: center;
+  min-height: calc(100vh - var(--header-h) - 140px);
+  background-image: url("/static/img/hero.jpg");
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+
+/* 左侧柔和过渡，把照片左缘融进页面底色 */
+.hero::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 55%;
+  background: linear-gradient(90deg, var(--c-page) 60%, transparent);
+  pointer-events: none;
+}
+
+.hero-media { grid-column: 2; justify-self: end; width: 120%; margin: 0; }
+.hero-media img { width: 100%; height: 100%; object-fit: cover; }
+
+.hero-copy {
+  position: relative;
+  z-index: 1;
+  grid-column: 1;
+  padding: 0 var(--sp-6) 0 var(--sp-16);
+}
+
+.hero-copy h1 {
+  font-size: var(--fs-hero);
+  font-weight: 600;
+  letter-spacing: .02em;
+  line-height: 1.3;
+}
+
+/* 标题右上装饰心形 */
+.hero-heart {
+  position: absolute;
+  top: -12px;
+  right: var(--sp-8);
+  width: 40px;
+  height: 40px;
+  color: var(--c-primary);
+}
+.hero-heart svg { width: 100%; height: 100%; }
+
+.hero-underline {
+  display: block;
+  width: 96px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--c-accent);
+  margin: var(--sp-4) 0 var(--sp-6);
+}
+
+.hero-sub {
+  font-size: var(--fs-base);
+  color: var(--c-text-muted-strong);
+  line-height: var(--lh-base);
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-8);
+}
+
+.btn-icon { display: inline-flex; width: 18px; height: 18px; }
+.btn-icon svg { width: 100%; height: 100%; }
+
+/* ==========================================================================
+   特性条：圆底图标 + 标题 + 说明，四列
+   ========================================================================== */
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-6);
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--sp-8) var(--gutter) var(--sp-12);
+}
+
+.feature {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+
+.feature-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--c-surface);
+  border: var(--bd);
+  color: var(--c-accent);
+}
+.feature-icon svg { width: 24px; height: 24px; }
+
+.feature h3 { font-size: var(--fs-base); font-weight: 600; }
+.feature p { font-size: var(--fs-sm); color: var(--c-text-muted-strong); }
+
+/* ==========================================================================
+   768–1199px：文案区放宽至 55%，特性条两列
+   ========================================================================== */
+
+@media (max-width: 1199px) {
+  .hero { grid-template-columns: 55% 45%; }
+  .features { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ==========================================================================
+   ≤768px：整幅深色遮罩上图、文案左对齐、特性条单列
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .hero {
+    grid-template-columns: 1fr;
+    min-height: auto;
+    background-image: none;
+  }
+  .hero::after { display: none; }
+
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: var(--c-overlay);
+  }
+
+  .hero-media { position: absolute; inset: 0; width: 100%; }
+  .hero-media img { height: 100%; }
+
+  .hero-copy {
+    z-index: 2;
+    padding: var(--sp-12) var(--gutter);
+    color: var(--c-on-image);
+  }
+  .hero-copy h1 { color: var(--c-on-image); }
+  .hero-heart { display: none; }
+  .hero-sub { color: var(--c-on-image-muted); }
+
+  .features { grid-template-columns: 1fr; }
+}

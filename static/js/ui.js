@@ -139,14 +139,20 @@ export function confirmDialog({
 }
 
 /* ==========================================================================
-   顶栏骨架：Phase 1 只渲染未登录态占位链接；Phase 2 补视觉、Phase 3 补已登录态
+   顶栏：未登录态（登录 / 注册 / 关于）+ 移动抽屉 + 滚动阴影
+   已登录态由 Phase 3 Task 4 切换为「写笔记 / 我的主页 / 头像菜单」
    ========================================================================== */
+
+const GUEST_LINKS = [['/login', '登录'], ['/register', '注册'], ['/about', '关于']];
 
 function buildNavLink(href, text, activePath) {
   const link = document.createElement('a');
   link.href = href;
   link.textContent = text;
-  if (href === activePath) link.setAttribute('aria-current', 'page');
+  if (href === activePath) {
+    link.setAttribute('aria-current', 'page');
+    link.className = 'is-active';
+  }
   return link;
 }
 
@@ -174,17 +180,13 @@ export function renderHeader(user, activePath = '/') {
   const toggle = document.createElement('button');
   toggle.type = 'button';
   toggle.className = 'nav-toggle';
+  toggle.textContent = '☰';
   toggle.setAttribute('aria-label', '打开导航菜单');
   toggle.setAttribute('aria-expanded', 'false');
   toggle.setAttribute('aria-controls', 'nav-drawer');
-  toggle.textContent = '☰';
-  toggle.addEventListener('click', () => {
-    const drawer = document.getElementById('nav-drawer');
-    if (!drawer) return;
-    const open = drawer.classList.toggle('is-open');
-    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    toggle.setAttribute('aria-label', open ? '关闭导航菜单' : '打开导航菜单');
-  });
+
+  const scrim = document.createElement('div');
+  scrim.className = 'nav-scrim';
 
   const drawer = document.createElement('div');
   drawer.className = 'nav-drawer';
@@ -192,32 +194,55 @@ export function renderHeader(user, activePath = '/') {
 
   const links = document.createElement('ul');
   links.className = 'nav-links';
-  [['/', '首页'], ['/about', '关于']].forEach(([href, text]) => {
+  GUEST_LINKS.forEach(([href, text]) => {
     const li = document.createElement('li');
     li.appendChild(buildNavLink(href, text, activePath));
     links.appendChild(li);
   });
-
   drawer.appendChild(links);
 
   if (user) {
-    // 已登录态（写笔记 / 我的主页 / 头像菜单）由 Phase 3 填充
-  } else {
-    const guest = document.createElement('ul');
-    guest.className = 'nav-user';
-    [['/login', '登录'], ['/register', '注册']].forEach(([href, text], index) => {
-      const li = document.createElement('li');
-      const link = buildNavLink(href, text, activePath);
-      if (index === 0) link.className = 'btn btn-secondary';
-      else link.className = 'btn btn-primary';
-      li.appendChild(link);
-      guest.appendChild(li);
-    });
-    drawer.appendChild(guest);
+    // Phase 3 在此切换为「写笔记 / 我的主页 / 头像菜单」
   }
 
-  nav.append(brand, toggle, drawer);
+  const isOpen = () => drawer.classList.contains('is-open');
+  const setOpen = (open) => {
+    drawer.classList.toggle('is-open', open);
+    scrim.classList.toggle('is-visible', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-label', open ? '关闭导航菜单' : '打开导航菜单');
+    if (open) {
+      const first = drawer.querySelector('a');
+      if (first) first.focus();
+    } else {
+      toggle.focus();        // 关闭时焦点回到汉堡按钮
+    }
+  };
+
+  toggle.addEventListener('click', () => setOpen(!isOpen()));
+  scrim.addEventListener('click', () => setOpen(false));
+  links.addEventListener('click', (event) => {
+    if (event.target && event.target.tagName === 'A') setOpen(false);
+  });
+  // Esc 关闭：绑定在每次重建的 nav 上，避免在复用的 header 上堆叠监听
+  nav.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && isOpen()) {
+      event.preventDefault();
+      setOpen(false);
+    }
+  });
+
+  nav.append(brand, toggle, scrim, drawer);
   header.appendChild(nav);
+
+  // 滚动阴影：header 元素跨路由复用，仅在首次渲染绑定一次监听
+  const applyScrolled = () => header.classList.toggle('is-scrolled', window.scrollY > 8);
+  if (!header.__scrollBound) {
+    header.__scrollBound = true;
+    window.addEventListener('scroll', applyScrolled, { passive: true });
+  }
+  applyScrolled();
+
   return header;
 }
 

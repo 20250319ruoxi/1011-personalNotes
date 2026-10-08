@@ -1,1 +1,63 @@
-/* about.css — 关于页样式（Phase 2 实现）。Phase 1 仅占位，避免 404 影响排查。 */
+/* about.css — 关于页样式（四个纸卡片区块）
+   色值只引用 base.css 令牌。 */
+
+.about-page {
+  max-width: var(--reading-max);
+  margin: 0 auto;
+  padding: var(--sp-12) var(--gutter) var(--sp-16);
+}
+
+/* 区块：纸卡片 + 一致间距 / 内边距 */
+.about-page .paper { padding: var(--sp-8); }
+.about-page .paper + .paper { margin-top: var(--sp-6); }
+
+.about-page h2 {
+  font-size: var(--fs-h2);
+  margin-bottom: var(--sp-4);
+}
+
+.about-page p {
+  font-size: var(--fs-base);
+  line-height: var(--lh-reading);
+  color: var(--c-text);
+}
+.about-page p + p { margin-top: var(--sp-3); }
+
+/* 功能清单：金色圆点 + 宽松行高 */
+.about-list li {
+  position: relative;
+  padding-left: var(--sp-6);
+  line-height: var(--lh-reading);
+  color: var(--c-text);
+}
+.about-list li::before {
+  content: "";
+  position: absolute;
+  left: var(--sp-1);
+  top: .72em;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c-accent);
+}
+
+/* 技术栈：两列定义列表 */
+.tech-list {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: var(--sp-3) var(--sp-4);
+}
+.tech-list dt { color: var(--c-text-muted-strong); }
+.tech-list dd { margin: 0; color: var(--c-text); }
+
+/* ≤768px：技术栈改单列，避免 120px 标签列挤压内容 */
+@media (max-width: 768px) {
+  .about-page { padding: var(--sp-8) var(--gutter) var(--sp-12); }
+  .about-page .paper { padding: var(--sp-6); }
+  .tech-list {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .tech-list dt { margin-top: var(--sp-3); }
+  .tech-list dd { margin-bottom: var(--sp-3); }
+}

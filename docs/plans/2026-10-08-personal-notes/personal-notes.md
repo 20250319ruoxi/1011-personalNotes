@@ -114,7 +114,8 @@
 **File:** [phase-2-home-page.md](phase-2-home-page.md)
 **Goal:** 交付与设计稿一致的静态主页与关于页（未登录态），并把设计令牌落实为可复用的通用组件。
 **Tasks:** 4
-**Status:** Not Started
+**Status:** Done
+**Completion:** √
 
 ### Phase 3: 用户体系
 **File:** [phase-3-auth.md](phase-3-auth.md)
