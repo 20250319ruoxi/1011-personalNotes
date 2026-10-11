@@ -44,7 +44,10 @@ const CLEAR_MESSAGE = '确定要清空全部浏览记录吗？此操作不可恢
 const CLEAR_CONFIRM = '清空';
 const CLEARED_TOAST = '已清空浏览记录';
 
-const BLOCKED_MESSAGE = '需要先通过分享链接访问并解锁';
+/* 打开收藏 / 足迹条目：本人的笔记走作者详情页；他人分享的笔记走分享页 /s/<token>。
+   后端只在「他人 + 可用」时下发 share_url —— /api/notes/<id> 是作者侧路由，对非作者一律
+   NOT_FOUND，照直跳过去只会看到「请求的内容不存在」。 */
+const openItem = (item) => navigate(item.share_url || `/notes/${item.note.id}`);
 
 /* ==========================================================================
    视图入口
@@ -442,17 +445,6 @@ function paintFavorites(panel) {
     } catch (_) { /* 错误文案由 api.js 统一 toast 后端 message */ }
   }
 
-  /** 作者本人收藏自己笔记可直接打开；他人分享的笔记需先经分享链接解锁，
-      未解锁时详情接口返回 NOT_FOUND —— 此时必须给出明确提示而不是静默失败。 */
-  async function openFavorite(item) {
-    try {
-      await api.get(`/api/notes/${item.note.id}`, { silent: true });
-      navigate(`/notes/${item.note.id}`);
-    } catch (_) {
-      toast(BLOCKED_MESSAGE);
-    }
-  }
-
   const favoriteItem = (item) => {
     const note = item.note || {};
     const authorName = (item.author && item.author.username) || '';
@@ -465,7 +457,7 @@ function paintFavorites(panel) {
       });
     }
 
-    const card = noteCard(note, { onOpen: () => openFavorite(item) });
+    const card = noteCard(note, { onOpen: () => openItem(item) });
 
     const foot = card.querySelector('.note-card-foot');
     const author = document.createElement('span');
@@ -588,7 +580,7 @@ function paintHistory(panel) {
 
     // 足迹卡片展示浏览时间与作者：复用 noteCard，把更新时间替换为 viewed_at
     const card = noteCard({ ...note, updated_at: item.viewed_at },
-                          { onOpen: () => navigate(`/notes/${note.id}`) });
+                          { onOpen: () => openItem(item) });
     const foot = card.querySelector('.note-card-foot');
     const author = document.createElement('span');
     author.className = 'note-card-author';

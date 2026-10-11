@@ -23,6 +23,27 @@ const dialogRoot = document.createElement('div');
 dialogRoot.id = 'dialog-root';
 document.body.append(headerEl, appEl, toastRoot, dialogRoot);
 
+/* ---- 下载捕获：记录 Blob 内容与 <a download> 的文件名，避免真的触发浏览器下载 ---- */
+const downloads = [];
+let lastDownloadName = null;
+globalThis.Blob = class {
+  constructor(parts, options) {
+    this.parts = parts;
+    this.type = (options && options.type) || '';
+    downloads.push(this);
+  }
+};
+globalThis.URL = { createObjectURL: () => 'blob:test', revokeObjectURL() {} };
+const realCreateElement = document.createElement.bind(document);
+document.createElement = (tag) => {
+  const el = realCreateElement(tag);
+  if (String(tag).toLowerCase() === 'a') {
+    const realClick = el.click.bind(el);
+    el.click = () => { lastDownloadName = el.download; realClick(); };
+  }
+  return el;
+};
+
 const tick = (ms = 25) => new Promise((resolve) => setTimeout(resolve, ms));
 const flush = async () => { await tick(); await tick(); await tick(); await tick(); };
 
@@ -228,6 +249,25 @@ safe('sharePage', () => {
   sharePage.hasLock = !!field(appEl, '.share-lock');
   sharePage.hasSkeletonLeft = all(appEl, '.skeleton').length;
   sharePage.getPaths = fetchCalls.filter((c) => c.method === 'GET').map((c) => c.path);
+});
+
+/* ==========================================================================
+   A'. 下载 .md：读者把 Markdown 原文存到本地
+   ========================================================================== */
+const shareDownload = {};
+await renderShare('ok');
+safe('shareDownloadClick', () => {
+  const btn = all(appEl, 'button').find((b) => b.textContent.trim() === '下载 .md');
+  if (!btn) throw new Error('分享页操作区缺少「下载 .md」按钮');
+  downloads.length = 0;
+  lastDownloadName = null;
+  btn.click();
+});
+safe('shareDownloadRead', () => {
+  shareDownload.fileName = lastDownloadName;
+  shareDownload.blobCount = downloads.length;
+  shareDownload.text = downloads.length ? downloads[0].parts[0] : null;
+  shareDownload.type = downloads.length ? downloads[0].type : null;
 });
 
 /* 空标题回退「无标题」 */
@@ -441,12 +481,11 @@ await renderPanel(PANEL_PRIVATE);
 safe('panelOff', () => {
   const panel = field(appEl, '.share-panel');
   panelOff.exists = !!panel;
-  const sw = panel ? panel.querySelector('input[type="checkbox"]') : null;
-  panelOff.switchType = sw ? sw.type : null;
-  panelOff.switchRole = sw ? sw.getAttribute('role') : null;
-  panelOff.switchChecked = sw ? sw.checked : null;
-  const label = panel ? panel.querySelector('label.switch') : null;
-  panelOff.switchLabel = label ? label.textContent.trim() : null;
+  // 开关已改为显式「保存并发布」按钮：不得再出现复选框
+  panelOff.checkboxCount = panel ? panel.querySelectorAll('input[type="checkbox"]').length : null;
+  const actions = field(appEl, '.share-actions');
+  const enable = actions ? actions.querySelectorAll('button')[0] : null;
+  panelOff.actionButton = enable ? enable.textContent.trim() : null;
   const pw = panel ? panel.querySelector('input[type="password"]') : null;
   panelOff.passwordPlaceholder = pw ? pw.getAttribute('placeholder') : null;
   panelOff.passwordMaxlength = pw ? pw.getAttribute('maxlength') : null;
@@ -462,8 +501,11 @@ safe('panelOn', () => {
   const linkInput = field(appEl, 'input[readonly]');
   panelOn.linkValue = linkInput ? linkInput.value : null;
   panelOn.buttonTexts = all(appEl, 'button').map((b) => b.textContent.trim());
-  const sw = field(appEl, '.share-panel').querySelector('input[type="checkbox"]');
-  panelOn.switchChecked = sw ? sw.checked : null;
+  // 已发布时首操作按钮换成「更新密码」
+  const actions = field(appEl, '.share-actions');
+  const first = actions ? actions.querySelectorAll('button')[0] : null;
+  panelOn.actionButton = first ? first.textContent.trim() : null;
+  panelOn.checkboxCount = all(appEl, 'input[type="checkbox"]').length;
   panelOn.hintText = field(appEl, '.field-hint') ? field(appEl, '.field-hint').textContent : null;
 });
 
@@ -474,21 +516,17 @@ safe('panelOnPw', () => {
   panelOnPw.hintText = field(appEl, '.field-hint') ? field(appEl, '.field-hint').textContent : null;
 });
 
-/* I-4 打开开关 → POST 开启分享 */
+/* I-4 点「保存并发布」 → POST 开启分享 */
 const panelEnable = {};
 await renderPanel(PANEL_PRIVATE);
 safe('panelEnableClick', () => {
   const panel = field(appEl, '.share-panel');
   const pw = panel.querySelector('input[type="password"]');
   pw.value = 'secret12';
-  const sw = panel.querySelector('input[type="checkbox"]');
-  sw.checked = true;
-  sw.dispatchEvent({ type: 'change', target: sw });
+  btnByText(appEl, '保存并发布').click();
 });
 await flush();
 safe('panelEnableRead', () => {
-  const sw = field(appEl, '.share-panel').querySelector('input[type="checkbox"]');
-  panelEnable.switchChecked = sw ? sw.checked : null;
   const linkInput = field(appEl, 'input[readonly]');
   panelEnable.linkValue = linkInput ? linkInput.value : null;
   panelEnable.buttonTexts = all(appEl, 'button').map((b) => b.textContent.trim());
@@ -570,8 +608,9 @@ safe('panelCloseRead', () => {
   panelClose.deletePath = del ? del.path : null;
   panelClose.hasLinkRow = !!field(appEl, '.link-row');
   panelClose.onChangeCalls = onChangeCalls;
-  const sw = field(appEl, '.share-panel').querySelector('input[type="checkbox"]');
-  panelClose.switchChecked = sw ? sw.checked : null;
+  const actions = field(appEl, '.share-actions');
+  const first = actions ? actions.querySelectorAll('button')[0] : null;
+  panelClose.actionButton = first ? first.textContent.trim() : null;
 });
 
 /* ==========================================================================
@@ -732,7 +771,7 @@ safe('shareFavUnfavRead', () => {
 });
 
 process.stdout.write(JSON.stringify({
-  errors, sharePage, untitled, lock, lockWrong, lockRate, lockOk, expired, generic, routing,
-  panelOff, panelOn, panelOnPw, panelEnable, panelCopy, panelCopyFail, panelUpdate, panelClose,
-  detailMount, shareFavorite,
+  errors, sharePage, shareDownload, untitled, lock, lockWrong, lockRate, lockOk, expired, generic,
+  routing, panelOff, panelOn, panelOnPw, panelEnable, panelCopy, panelCopyFail, panelUpdate,
+  panelClose, detailMount, shareFavorite,
 }) + '\n');

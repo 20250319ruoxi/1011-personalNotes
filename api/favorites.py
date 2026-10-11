@@ -6,6 +6,7 @@
 
 失效条目只返回 `title: null` 与 `summary: null`，绝不返回 content_md，
 避免分享关闭后内容仍可从收藏读取；列表 JOIN 只取作者 username / avatar，不返回邮箱。
+他人可用条目附带 `share_url`（/s/<token>）供前端跳转，本人笔记不带该字段。
 """
 from flask import Blueprint, request
 
@@ -31,12 +32,18 @@ def entry_to_dict(row, viewer_id):
         note["summary"] = None
         note["tags"] = []
         note["updated_at"] = None
-    return {
+    entry = {
         "note": note,
         "author": {"username": row["author_username"], "avatar": row["author_avatar"]},
         "available": available,
         "favorited_at": row["favorited_at"],
     }
+    # 他人分享的笔记只能经 /s/<token> 打开：/api/notes/<id> 是作者侧路由，对非作者一律
+    # NOT_FOUND（仅靠猜 id 不得读取内容）。这里返回可直接导航的地址而非用途不明的 token，
+    # 且该地址仍受分享密码保护（设密时 /s/<token> 会要求输入密码）。
+    if available and row["user_id"] != viewer_id:
+        entry["share_url"] = f"/s/{row['share_token']}"
+    return entry
 
 
 @bp.get("")

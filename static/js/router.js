@@ -10,9 +10,12 @@ export function registerRoute(pattern, load, { requiresAuth = false } = {}) {
 }
 
 function match(pathname) {
+  // 路径与模式必须用同一套归一化：都先去掉尾部斜杠再 split。
+  // 否则 '/' 这条模式 split 出来是 ['', '']（两段），而归一化后的 '/' 只有 ['']（一段），
+  // 长度不等会被直接跳过，导致首页永远匹配不到路由而落进「页面不存在」。
   const segs = pathname.replace(/\/+$/, '').split('/');
   for (const route of routes) {
-    const p = route.pattern.split('/');
+    const p = route.pattern.replace(/\/+$/, '').split('/');
     if (p.length !== segs.length) continue;
     const params = {};
     let ok = true;
@@ -58,6 +61,10 @@ async function render() {
   const root = document.getElementById('app');
   const found = match(location.pathname) || { route: notFoundRoute, params: {} };
   const { route, params } = found;
+  // 羊皮纸主题：除主页（使用照片 hero）外，其余页面套用全屏羊皮纸底
+  const parchment = route.pattern !== '/';
+  document.body.classList.toggle('theme-parchment', parchment);
+  document.documentElement.classList.toggle('theme-parchment', parchment);
   if (route.requiresAuth && !store.isLoggedIn()) {
     const back = encodeURIComponent(location.pathname + location.search);
     return navigate(`/login?redirect=${back}`, { replace: true });
@@ -68,6 +75,7 @@ async function render() {
 }
 
 const notFoundRoute = {
+  pattern: null,
   requiresAuth: false,
   load(root) {
     root.innerHTML = '';
@@ -125,6 +133,12 @@ registerRoute('/notes/:id', async (root, params) => {
 registerRoute('/me', async (root, params) => {
   const { renderProfile } = await import('./profile.js');
   renderProfile(root, params);
+}, { requiresAuth: true });
+
+// 工作台（依据 项目截图/02）：登录后的默认落地页
+registerRoute('/dashboard', async (root) => {
+  const { renderDashboard } = await import('./dashboard.js');
+  renderDashboard(root);
 }, { requiresAuth: true });
 
 // 公开分享页（Phase 6）：无需登录，按 token 拉取内容；设密时先渲染密码锁屏。

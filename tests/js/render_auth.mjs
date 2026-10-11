@@ -268,40 +268,45 @@ const registerValidation = safe('registerValidation', () => {
 const redirect = safe('redirect', () => ({
   slash: resolveRedirect('/notes'),
   slashWithQuery: resolveRedirect('/notes?page=2'),
-  doubleSlash: resolveRedirect('//evil.example'),
-  absolute: resolveRedirect('https://evil.example'),
-  empty: resolveRedirect(''),
-  none: resolveRedirect(undefined),
-  backslash: resolveRedirect('\\evil'),
+  // 拒绝类用例统一传显式兜底值：断言的是「谓词是否拒绝」，不与应用默认落地页耦合
+  doubleSlash: resolveRedirect('//evil.example', '/fallback'),
+  absolute: resolveRedirect('https://evil.example', '/fallback'),
+  empty: resolveRedirect('', '/fallback'),
+  none: resolveRedirect(undefined, '/fallback'),
+  backslash: resolveRedirect('\\evil', '/fallback'),
+  defaultLanding: resolveRedirect(undefined),
 }), null);
 
 /* ==========================================================================
-   顶栏已登录态 + 头像菜单 + 退出确认
+   顶栏已登录态 + 退出确认
+   （2026-10 改版：顶栏为「我的文章 / 个人主页 / 关于 / 退出」四个直链项，
+     不再有头像按钮与头像下拉菜单）
    ========================================================================== */
-location.pathname = '/notes/new'; location.search = '';
+location.pathname = '/notes'; location.search = '';
 store.setUser(loginUser, 'csrf-1');
 renderHeader(store.user, location.pathname);
 const headerLoggedIn = safe('headerLoggedIn', () => serialize(headerEl), null);
 
-const menu = safe('menu', () => {
-  const avatarBtn = headerEl.querySelector('.avatar-btn');
-  const menuEl = headerEl.querySelector('.avatar-menu');
-  const before = { expanded: avatarBtn.getAttribute('aria-expanded'),
-                   open: menuEl.classList.contains('is-open') };
-  avatarBtn.click();
-  const after = { expanded: avatarBtn.getAttribute('aria-expanded'),
-                  open: menuEl.classList.contains('is-open'),
-                  focusOnFirstItem: document.activeElement === menuEl.querySelector('a') };
-  return { before, after,
-           items: menuEl.querySelectorAll('a, button').map((el) => ({
-             tag: el.tagName, text: el.textContent, href: el.getAttribute('href') || '',
-           })) };
+const nav = safe('nav', () => {
+  const box = headerEl.querySelector('.nav-links');
+  return {
+    items: box.querySelectorAll('a, button').map((el) => ({
+      tag: el.tagName,
+      // 最小 DOM 的 innerHTML 只是把原始标记存成文本，textContent 会把图标 SVG 一起带出来；
+      // 这里剥掉标签，只留可见文案（真实浏览器中 textContent 不含标签）
+      text: el.textContent.trim().replace(/<[^>]*>/g, '').trim(),
+      href: el.getAttribute('href') || '',
+      icon: !!el.querySelector('.nav-icon'),
+      current: el.getAttribute('aria-current') || '',
+    })),
+    hasAvatar: !!headerEl.querySelector('.avatar-btn') || !!headerEl.querySelector('.avatar-menu'),
+    hasLogout: !!headerEl.querySelector('.nav-logout'),
+  };
 }, null);
 
 let logoutResult = null;
 safe('logoutDialog', () => {
-  const menuEl = headerEl.querySelector('.avatar-menu');
-  const logoutBtn = menuEl.querySelectorAll('button').find((b) => b.textContent.includes('退出登录'));
+  const logoutBtn = headerEl.querySelector('.nav-logout');
   logoutBtn.focus();     // 真实浏览器点击按钮会先聚焦，此处显式模拟
   logoutBtn.click();     // 打开二次确认
   const dialog = dialogRoot.querySelector('.dialog');
@@ -326,10 +331,8 @@ fetchCalls = [];
 fetchImpl = async () => ({ json: async () => ({ code: 'OK', message: '已退出登录', data: null }) });
 safe('confirmLogout', () => {
   store.setUser(loginUser, 'csrf-1');
-  renderHeader(store.user, '/notes/new');
-  headerEl.querySelector('.avatar-btn').click();
-  const menuEl = headerEl.querySelector('.avatar-menu');
-  menuEl.querySelectorAll('button').find((b) => b.textContent.includes('退出登录')).click();
+  renderHeader(store.user, '/notes');
+  headerEl.querySelector('.nav-logout').click();
   const dialog = dialogRoot.querySelector('.dialog');
   const confirmBtn = dialog.querySelectorAll('button').find((b) => b.textContent.includes('退出登录'));
   confirmBtn.click();
@@ -366,7 +369,7 @@ process.stdout.write(JSON.stringify({
   registerValidation,
   redirect,
   headerLoggedIn,
-  menu,
+  nav,
   logoutDialog: logoutResult,
   confirmedLogout,
 }) + '\n');

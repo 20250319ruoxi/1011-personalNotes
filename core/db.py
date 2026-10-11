@@ -107,6 +107,11 @@ def update_note(conn, note_id, title=None, content_md=None, status=None, tags=No
         fields.append("status = ?"); values.append(status)
         if status != "draft":
             fields.append("published_at = COALESCE(published_at, ?)"); values.append(now_iso())
+        if status != "public":
+            # 不再公开时同步清空分享凭证：否则会留下「私密却仍持有 share_token」的半死状态
+            # （状态不是 public，分享链接已失效，但作者面板仍显示「已开启」）。
+            fields.append("share_token = NULL")
+            fields.append("share_password_hash = NULL")
     values.append(note_id)
     conn.execute(f"UPDATE notes SET {', '.join(fields)} WHERE id = ?", values)
     if tags is not None:

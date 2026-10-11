@@ -142,17 +142,35 @@ export function confirmDialog({
 }
 
 /* ==========================================================================
-   顶栏：未登录态「登录 / 注册 / 关于」+ 已登录态「写笔记 / 我的主页 / 头像菜单」
+   顶栏：未登录态「登录 / 注册 / 关于」
+   已登录态「我的文章 / 个人主页 / 关于 / 退出」（按 项目截图/02-04 改版，去掉头像下拉菜单）
    + 移动抽屉 + 滚动阴影
    ========================================================================== */
 
-const GUEST_LINKS = [['/login', '登录'], ['/register', '注册'], ['/about', '关于']];
-const AUTH_LINKS = [['/notes/new', '写笔记'], ['/me', '我的主页'], ['/about', '关于']];
+const GUEST_LINKS = [['/login', '登录', null], ['/register', '注册', null], ['/about', '关于', null]];
+const AUTH_LINKS = [['/notes', '我的文章', 'article'], ['/me', '个人主页', 'profile'], ['/about', '关于', null]];
 
-function buildNavLink(href, text, activePath) {
+/* 顶栏图标：全部是静态 SVG 字符串字面量，无任何用户输入来源。
+   已在 tests/test_markdown_frontend.py 的 innerHTML 豁免清单登记（ui.js / markup）。 */
+const NAV_ICONS = {
+  article: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>',
+  profile: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.4 3.1-5.6 7-5.6s7 2.2 7 5.6"/></svg>',
+  logout: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h9"/></svg>',
+};
+
+function navIcon(markup) {
+  const span = document.createElement('span');
+  span.className = 'nav-icon';
+  span.setAttribute('aria-hidden', 'true');
+  span.innerHTML = markup;
+  return span;
+}
+
+function buildNavLink(href, text, activePath, iconKey) {
   const link = document.createElement('a');
   link.href = href;
-  link.textContent = text;
+  if (iconKey && NAV_ICONS[iconKey]) link.appendChild(navIcon(NAV_ICONS[iconKey]));
+  link.appendChild(document.createTextNode(text));
   if (href === activePath) {
     link.setAttribute('aria-current', 'page');
     link.className = 'is-active';
@@ -160,54 +178,15 @@ function buildNavLink(href, text, activePath) {
   return link;
 }
 
-/* 已登录态头像 + 下拉菜单（个人主页 / 退出登录） */
-function buildUserMenu(user, header) {
-  const wrap = document.createElement('div');
-  wrap.className = 'nav-user';
-
-  const avatarBtn = document.createElement('button');
-  avatarBtn.type = 'button';
-  avatarBtn.className = 'avatar-btn';
-  avatarBtn.setAttribute('aria-haspopup', 'menu');
-  avatarBtn.setAttribute('aria-expanded', 'false');
-  avatarBtn.setAttribute('aria-label', `账号菜单：${String(user.username || '').trim()}`);
-  avatarBtn.textContent = String(user.username || '').trim().charAt(0);
-
-  const menu = document.createElement('div');
-  menu.className = 'avatar-menu';
-  menu.setAttribute('role', 'menu');
-
-  const profileLink = document.createElement('a');
-  profileLink.setAttribute('role', 'menuitem');
-  profileLink.href = '/me';
-  profileLink.textContent = '个人主页';
-
-  const logoutBtn = document.createElement('button');
-  logoutBtn.type = 'button';
-  logoutBtn.className = 'avatar-menu-item';
-  logoutBtn.setAttribute('role', 'menuitem');
-  logoutBtn.textContent = '退出登录';
-
-  menu.append(profileLink, logoutBtn);
-
-  const isOpen = () => menu.classList.contains('is-open');
-  const setOpen = (open) => {
-    menu.classList.toggle('is-open', open);
-    avatarBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    if (open) {
-      const first = menu.querySelector('a, button');
-      if (first && typeof first.focus === 'function') first.focus();
-    }
-  };
-
-  avatarBtn.addEventListener('click', () => setOpen(!isOpen()));
-
-  menu.addEventListener('click', (event) => {
-    if (event.target && event.target.tagName === 'A') setOpen(false);
-  });
-
-  logoutBtn.addEventListener('click', async () => {
-    setOpen(false);
+/* 已登录态「退出」：按 项目截图/02 改版为顶栏直接项，不再使用头像下拉菜单 */
+function buildLogoutButton() {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'nav-link nav-logout';
+  btn.setAttribute('aria-label', '退出登录');
+  btn.appendChild(navIcon(NAV_ICONS.logout));
+  btn.appendChild(document.createTextNode('退出'));
+  btn.addEventListener('click', async () => {
     const confirmed = await confirmDialog({
       title: '退出登录',
       message: '确定要退出当前账号吗？',
@@ -222,30 +201,7 @@ function buildUserMenu(user, header) {
     const { navigate } = await import('./router.js');   // 动态导入避免循环依赖
     navigate('/');
   });
-
-  // Esc 关闭并把焦点交回头像按钮
-  wrap.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && isOpen()) {
-      event.preventDefault();
-      setOpen(false);
-      avatarBtn.focus();
-    }
-  });
-
-  // 点击菜单外部关闭；wrap 已被移除时自动解绑，避免监听器累积
-  const onDocumentClick = (event) => {
-    if (header && !header.contains(wrap)) {
-      document.removeEventListener('click', onDocumentClick);
-      return;
-    }
-    if (!isOpen()) return;
-    if (wrap.contains(event.target)) return;
-    setOpen(false);
-  };
-  document.addEventListener('click', onDocumentClick);
-
-  wrap.append(avatarBtn, menu);
-  return wrap;
+  return btn;
 }
 
 export function renderHeader(user, activePath = '/') {
@@ -286,16 +242,18 @@ export function renderHeader(user, activePath = '/') {
 
   const links = document.createElement('ul');
   links.className = 'nav-links';
-  (user ? AUTH_LINKS : GUEST_LINKS).forEach(([href, text]) => {
+  (user ? AUTH_LINKS : GUEST_LINKS).forEach(([href, text, iconKey]) => {
     const li = document.createElement('li');
-    li.appendChild(buildNavLink(href, text, activePath));
+    li.appendChild(buildNavLink(href, text, activePath, iconKey));
     links.appendChild(li);
   });
-  drawer.appendChild(links);
-
   if (user) {
-    drawer.appendChild(buildUserMenu(user, header));
+    const logoutItem = document.createElement('li');
+    logoutItem.className = 'nav-logout-item';
+    logoutItem.appendChild(buildLogoutButton());
+    links.appendChild(logoutItem);
   }
+  drawer.appendChild(links);
 
   const isOpen = () => drawer.classList.contains('is-open');
   const setOpen = (open) => {
@@ -672,4 +630,34 @@ export function favoriteButton(note, { isFavorited = false, redirect = null } = 
   }
 
   return btn;
+}
+
+/* ==========================================================================
+   下载 Markdown 原文到本地
+   ========================================================================== */
+
+/** 由标题推导一个安全的 `.md` 文件名：剔除路径分隔符与 Windows 非法字符，
+    压缩空白、截断长度、去掉结尾的点与空格（Windows 不允许）。 */
+export function markdownFilename(title, fallback = '未命名') {
+  const base = String(title == null ? '' : title)
+    .replace(/[\/:*?"<>|\u0000-\u001f]/g, '_')
+    .replace(/\s+/g, ' ')
+    .slice(0, 60)
+    .replace(/[. ]+$/, '')
+    .trim();
+  return `${base || fallback}.md`;
+}
+
+/** 触发一次浏览器下载：把 Markdown 原文存成 `<filename>.md`。 */
+export function downloadMarkdown(filename, text) {
+  const blob = new Blob([text == null ? '' : String(text)],
+                        { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }

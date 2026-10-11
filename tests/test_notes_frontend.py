@@ -39,6 +39,12 @@ UNFAVORITE_TITLE = "取消收藏"
 UNFAVORITE_MESSAGE = "确定要取消收藏这篇笔记吗？"
 ALREADY_FAVORITED_MESSAGE = "已收藏过该笔记"
 
+# 下载为 .md
+DOWNLOAD_TEXT = "下载 .md"
+DOWNLOAD_TYPE = "text/markdown;charset=utf-8"
+NOTE_TITLE = "我的第一篇"
+NOTE_CONTENT = "# 标题\n\n一些内容"
+
 
 @pytest.fixture(scope="module")
 def rendered() -> dict:
@@ -356,11 +362,11 @@ def test_note_grid_auto_fill(notes_css):
     assert prop(body, "gap:var(--sp-6)")
 
 
-def test_note_card_paper_styles(notes_css):
+def test_note_card_styles(notes_css):
+    """2026-10 改版：笔记卡片由羊皮纸纹理改为暖白卡面，羊皮纸移作整页背景。"""
     body = find_rule(notes_css, ".note-card")
     assert body is not None
-    assert prop(body, "background-image:url(\"/static/img/paper.jpg\")")
-    assert prop(body, "background-color:var(--c-paper-fallback)")
+    assert prop(body, "background-color:var(--c-card)")
     assert prop(body, "border:var(--bd)")
     assert prop(body, "border-radius:var(--r-2)")
     assert prop(body, "padding:var(--sp-6)")
@@ -446,16 +452,37 @@ def test_detail_body_is_rendered_markdown(detail):
     assert d["bodyHtml"] == d["bodyExpected"], "正文必须等于 renderMarkdown(content_md)"
 
 
-def test_detail_actions_are_favorite_edit_delete(detail):
-    """Phase 7 Task 2 起操作条为「收藏 / 编辑 / 删除」，收藏按钮排在编辑之前。"""
+def test_detail_actions_are_favorite_download_edit_delete(detail):
+    """操作条为「收藏 / 下载 .md / 编辑 / 删除」：收藏最前、删除最末，下载居中。"""
     d = block(detail, "detail")
-    assert d["actionTexts"] == [FAVORITE_TEXT, "编辑", "删除"]
+    assert d["actionTexts"] == [FAVORITE_TEXT, DOWNLOAD_TEXT, "编辑", "删除"]
     assert "btn-secondary" in d["actionClasses"][0]
     assert FAVORITE_CLASS in d["actionClasses"][0]
     assert "btn-secondary" in d["actionClasses"][1]
-    assert "btn-danger" in d["actionClasses"][2]
+    assert "btn-secondary" in d["actionClasses"][2]
+    assert "btn-danger" in d["actionClasses"][3]
     assert d["hasShareButton"] is False, "详情页不放独立分享按钮（由分享面板承担）"
     assert d["hasFavoriteButton"] is True
+
+
+def test_detail_download_saves_markdown_source(detail):
+    """点「下载 .md」：文件名 = 标题.md，Blob 内容 = Markdown 原文（不是渲染后的 HTML）。"""
+    d = block(detail, "detailDownload")
+    assert d["fileName"] == f"{NOTE_TITLE}.md"
+    assert d["blobCount"] == 1, "一次点击只触发一次下载"
+    assert d["text"] == NOTE_CONTENT
+    assert d["type"] == DOWNLOAD_TYPE
+
+
+def test_markdown_filename_rules(detail):
+    """文件名规则：剔除非法字符、空标题用兜底名、去掉结尾的点、超长截断。"""
+    f = block(detail, "filenames")
+    assert f["plain"] == "我的第一篇.md"
+    assert f["illegal"] == "a_b_c_d_e_f_g_h_i.md", "路径分隔符与 Windows 非法字符都要替换"
+    assert f["blank"] == "笔记-11.md"
+    assert f["spacesOnly"] == "笔记-11.md", "全空白标题视为空"
+    assert f["trailingDot"] == "标题.md", "结尾的点在 Windows 会截断扩展名"
+    assert f["longLength"] <= 64, "超长标题需截断（60 字 + .md）"
 
 
 def test_detail_empty_title_and_content(detail):
@@ -537,7 +564,7 @@ def test_detail_actions_mobile(notes_css):
 def test_detail_favorite_button_initial_state(detail):
     """渲染时并行查询收藏列表；未收藏时显示「收藏」且不置 aria-pressed。"""
     f = block(detail, "favorite")
-    assert f["actionOrder"] == [FAVORITE_TEXT, "编辑", "删除"]
+    assert f["actionOrder"] == [FAVORITE_TEXT, DOWNLOAD_TEXT, "编辑", "删除"]
     assert f["initialText"] == FAVORITE_TEXT
     assert FAVORITE_CLASS in f["initialClass"]
     assert "is-favorited" not in f["initialClass"]

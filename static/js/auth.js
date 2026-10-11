@@ -29,8 +29,9 @@ export function isStrongPassword(value) {
   return text.length >= 8 && text.length <= 64 && /[A-Za-z]/.test(text) && /\d/.test(text);
 }
 
-/* 防开放重定向：只接受「以单个 / 开头且不以 // 开头」的站内相对路径，否则回退 fallback。 */
-export function resolveRedirect(value, fallback = '/me') {
+/* 防开放重定向：只接受「以单个 / 开头且不以 // 开头」的站内相对路径，否则回退 fallback。
+   工作台上线后（项目截图/02），登录/注册的默认落地页由 /me 改为 /dashboard。 */
+export function resolveRedirect(value, fallback = '/dashboard') {
   if (typeof value !== 'string' || value === '') return fallback;
   if (value[0] !== '/') return fallback;
   if (value.startsWith('//')) return fallback;
@@ -269,7 +270,7 @@ export function renderRegister(root) {
   });
   ctx.endpoint = '/api/auth/register';
   ctx.submitText = '注册';
-  ctx.target = '/me';
+  ctx.target = '/dashboard';
   ctx.buildPayload = (refs) => ({
     email: refs.email.input.value.trim(),
     username: refs.username.input.value.trim(),

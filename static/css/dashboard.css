@@ -1,0 +1,121 @@
+/* ==========================================================================
+   dashboard.css — 工作台（依据 项目截图/02工作台.png）
+   页面底为 body 的羊皮纸主题，本页只负责暖白卡片与排版。
+   ========================================================================== */
+
+.dash-page {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--sp-8) var(--gutter) var(--sp-16);
+}
+
+.dash-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-8);
+}
+
+.dash-title {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.dash-actions { display: flex; gap: var(--sp-3); }
+
+/* ---- 三张统计卡 ---- */
+.dash-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-6);
+  margin-bottom: var(--sp-6);
+}
+
+.dash-stat {
+  background: var(--c-card);
+  border: var(--bd);
+  border-radius: var(--r-2);
+  box-shadow: var(--sd-card);
+  padding: var(--sp-6) var(--sp-8);
+}
+
+.dash-stat-value {
+  font-size: var(--fs-hero);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--c-text);
+}
+
+.dash-stat-label {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--c-ink-muted);
+}
+
+/* ---- 最近文章 ---- */
+.dash-section {
+  background: var(--c-card);
+  border: var(--bd);
+  border-radius: var(--r-2);
+  box-shadow: var(--sd-card);
+  padding: var(--sp-6) var(--sp-8);
+}
+
+.dash-section h2 {
+  font-size: var(--fs-h3);
+  font-weight: 600;
+  color: var(--c-text);
+  margin-bottom: var(--sp-3);
+}
+
+.dash-list { display: flex; flex-direction: column; }
+
+.dash-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 56px;
+  padding: 0;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--c-card-line);
+  cursor: pointer;
+}
+.dash-list .dash-row:first-child { border-top: 0; }
+.dash-row:hover .dash-row-title { color: var(--c-link-hover); }
+
+.dash-row-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-base);
+  color: var(--c-ink);
+}
+
+.dash-row-time { font-size: var(--fs-sm); color: var(--c-ink-muted); white-space: nowrap; }
+
+.dash-empty { padding: var(--sp-6) 0; color: var(--c-ink-muted); }
+
+/* ---- 页脚标语 ---- */
+.dash-foot {
+  margin-top: var(--sp-12);
+  text-align: center;
+  font-size: var(--fs-sm);
+  color: var(--c-text);
+}
+
+@media (max-width: 768px) {
+  .dash-head { flex-wrap: wrap; }
+  .dash-actions { width: 100%; }
+  .dash-actions .btn { flex: 1; }
+  .dash-stats { grid-template-columns: 1fr; gap: var(--sp-4); }
+  .dash-stat { padding: var(--sp-4) var(--sp-6); }
+  .dash-section { padding: var(--sp-4) var(--sp-4); }
+  .dash-row { flex-wrap: wrap; padding: var(--sp-3) 0; }
+}

@@ -5,7 +5,7 @@
 import { api } from './api.js';
 import { navigate } from './router.js';
 import { renderMarkdown } from './markdown.js';
-import { confirmDialog, favoriteButton, formatDate, skeleton, toast } from './ui.js';
+import { confirmDialog, downloadMarkdown, favoriteButton, formatDate, markdownFilename, skeleton, toast } from './ui.js';
 
 const SITE_TITLE = '个人笔记';
 const UNTITLED = '无标题';
@@ -153,6 +153,17 @@ function renderShareArticle(page, data, token) {
   actions.className = 'share-actions';
   actions.id = 'share-actions';
   actions.appendChild(favoriteButton(note, { redirect: `/s/${token}` }));
+
+  // 下载为 .md：读者把 Markdown 原文存到本地
+  const download = document.createElement('button');
+  download.type = 'button';
+  download.className = 'btn btn-secondary';
+  download.textContent = '下载 .md';
+  download.addEventListener('click', () => {
+    downloadMarkdown(markdownFilename(note.title, `笔记-${note.id}`), note.content_md || '');
+  });
+  actions.appendChild(download);
+
   article.appendChild(actions);
 
   // 评论区容器：由 comments.js 渲染（两页共用同一组件）
@@ -274,13 +285,14 @@ function renderShareLock(page, token) {
 
 /* ==========================================================================
    作者分享面板 SharePanel（详情页）
-   - 开关「开启分享」：打开即 POST /api/notes/<id>/share（可带密码）
-   - 密码输入始终可见（未开启时用于首次设置密码，已开启时配合「更新密码」修改）
-   - 已开启：只读链接框 + 「复制链接」+ 「更新密码」+ 危险操作「关闭分享」
+   - 「保存并发布」按钮：显式触发 POST /api/notes/<id>/share（可带密码）。
+     不再用开关，避免「拨一下开关就把笔记发出去」这种没有确认的误操作。
+   - 密码输入始终可见（未发布时用于首次设置密码，已发布时配合「更新密码」修改）
+   - 已发布：只读链接框 + 「复制链接」+ 「更新密码」+ 危险操作「关闭分享」
    - 链接由服务端返回的 share_token 拼出绝对地址，前端不生成、不猜测 token
    ========================================================================== */
 
-const SWITCH_LABEL = '开启分享';
+const ENABLE_BUTTON = '保存并发布';
 const PASSWORD_PLACEHOLDER = '留空表示不需要密码';
 const COPY_BUTTON = '复制链接';
 const UPDATE_BUTTON = '更新密码';
@@ -302,17 +314,20 @@ export function renderSharePanel(container, note, { onChange } = {}) {
   const panel = document.createElement('div');
   panel.className = 'share-panel';
 
-  const toggleRow = document.createElement('div');
-  toggleRow.className = 'share-toggle-row';
+  const actionRow = document.createElement('div');
+  actionRow.className = 'share-actions';
 
-  const switchLabel = document.createElement('label');
-  switchLabel.className = 'switch';
-  const switchInput = document.createElement('input');
-  switchInput.type = 'checkbox';
-  switchInput.setAttribute('role', 'switch');
-  switchInput.checked = state.enabled;
-  switchLabel.append(switchInput, document.createTextNode(SWITCH_LABEL));
-  toggleRow.appendChild(switchLabel);
+  const enableBtn = document.createElement('button');
+  enableBtn.type = 'button';
+  enableBtn.className = 'btn btn-gold';
+  enableBtn.textContent = ENABLE_BUTTON;
+  enableBtn.addEventListener('click', () => enable());
+
+  const updateBtn = document.createElement('button');
+  updateBtn.type = 'button';
+  updateBtn.className = 'btn btn-secondary';
+  updateBtn.textContent = UPDATE_BUTTON;
+  updateBtn.addEventListener('click', () => updatePassword());
 
   const passwordField = document.createElement('div');
   passwordField.className = 'field';
@@ -331,7 +346,7 @@ export function renderSharePanel(container, note, { onChange } = {}) {
   const conditional = document.createElement('div');
   conditional.className = 'share-panel-conditional';
 
-  panel.append(toggleRow, passwordField, conditional);
+  panel.append(actionRow, passwordField, conditional);
   container.appendChild(panel);
 
   const absoluteShareUrl = () => {
@@ -365,7 +380,7 @@ export function renderSharePanel(container, note, { onChange } = {}) {
   }
 
   async function enable() {
-    switchInput.disabled = true;
+    enableBtn.disabled = true;
     try {
       const result = await api.post(`/api/notes/${data.id}/share`,
                                     { password: passwordInput.value });
@@ -374,14 +389,9 @@ export function renderSharePanel(container, note, { onChange } = {}) {
         ? String(result.share_url).split('/').pop() : state.token;
       state.hasPassword = !!(result && result.has_password);
       passwordInput.value = '';
-      switchInput.checked = true;
-      renderConditional();
-      refreshHint();
-      notify();
-    } catch (_) {
-      switchInput.checked = false;
-    } finally {
-      switchInput.disabled = false;
+      sync();
+    } catch (_) { /* 错误文案由 api.js 统一 toast */ } finally {
+      enableBtn.disabled = false;
     }
   }
 
@@ -393,9 +403,7 @@ export function renderSharePanel(container, note, { onChange } = {}) {
       state.token = (result && result.share_url)
         ? String(result.share_url).split('/').pop() : state.token;
       passwordInput.value = '';
-      renderConditional();
-      refreshHint();
-      notify();
+      sync();
     } catch (_) { /* 错误文案由 api.js 统一 toast */ }
   }
 
@@ -406,37 +414,32 @@ export function renderSharePanel(container, note, { onChange } = {}) {
       confirmText: CLOSE_BUTTON,
       danger: true,
     });
-    if (!confirmed) {
-      switchInput.checked = state.enabled;
-      return;
-    }
+    if (!confirmed) return;
     try {
       await api.del(`/api/notes/${data.id}/share`);
       state.enabled = false;
       state.token = null;
       state.hasPassword = false;
       passwordInput.value = '';
-      switchInput.checked = false;
-      renderConditional();
-      refreshHint();
-      notify();
-    } catch (_) {
-      switchInput.checked = state.enabled;
-    }
+      sync();
+    } catch (_) { /* 错误文案由 api.js 统一 toast */ }
+  }
+
+  function renderActions() {
+    actionRow.textContent = '';
+    actionRow.appendChild(state.enabled ? updateBtn : enableBtn);
+  }
+
+  function sync() {
+    renderActions();
+    renderConditional();
+    refreshHint();
+    notify();
   }
 
   function renderConditional() {
     conditional.textContent = '';
-    const existing = toggleRow.querySelector('button');
-    if (existing) existing.remove();
     if (!state.enabled) return;
-
-    const update = document.createElement('button');
-    update.type = 'button';
-    update.className = 'btn btn-secondary';
-    update.textContent = UPDATE_BUTTON;
-    update.addEventListener('click', updatePassword);
-    toggleRow.appendChild(update);
 
     const linkRow = document.createElement('div');
     linkRow.className = 'link-row';
@@ -464,11 +467,7 @@ export function renderSharePanel(container, note, { onChange } = {}) {
     conditional.appendChild(dangerRow);
   }
 
-  switchInput.addEventListener('change', () => {
-    if (switchInput.checked && !state.enabled) enable();
-    else if (!switchInput.checked && state.enabled) closeShare();
-  });
-
+  renderActions();
   renderConditional();
   refreshHint();
 }

@@ -6,7 +6,7 @@
   display: grid;
   place-items: center;
   padding: var(--sp-8) var(--gutter);
-  background: var(--c-page);
+  background: transparent;
 }
 
 .auth-card {

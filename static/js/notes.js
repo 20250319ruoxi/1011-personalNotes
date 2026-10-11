@@ -6,7 +6,7 @@ import { navigate } from './router.js';
 import { renderMarkdown } from './markdown.js';
 import { renderComments } from './comments.js';
 import { renderSharePanel } from './share.js';
-import { confirmDialog, emptyState, favoriteButton, formatDate, noteCard, pagination, skeleton, toast } from './ui.js';
+import { confirmDialog, downloadMarkdown, emptyState, favoriteButton, formatDate, markdownFilename, noteCard, pagination, skeleton, toast } from './ui.js';
 
 const PAGE_SIZE = 10;
 
@@ -238,10 +238,24 @@ export function renderNoteList(root, params = {}) {
   const page = document.createElement('section');
   page.className = 'note-page';
 
+  // 页头：「我的文章」+ 新建入口。
+  // 顶栏按 项目截图/02 改版后不再有「写笔记」链接，编辑器入口由本按钮承担。
+  const head = document.createElement('div');
+  head.className = 'note-head';
+  const title = document.createElement('h1');
+  title.className = 'note-title';
+  title.textContent = '我的文章';
+  const createBtn = document.createElement('button');
+  createBtn.type = 'button';
+  createBtn.className = 'btn btn-gold';
+  createBtn.textContent = '新建文章';
+  createBtn.addEventListener('click', () => navigate('/notes/new'));
+  head.append(title, createBtn);
+
   const body = document.createElement('div');
   body.className = 'note-body';
 
-  page.append(buildToolbar(query), body);
+  page.append(head, buildToolbar(query), body);
   root.appendChild(page);
 
   renderNoteGrid(body, query);
@@ -330,6 +344,16 @@ function paintDetail(page, note) {
 
   // 收藏 / 已收藏（Phase 7 Task 2）：排在编辑与删除之前
   actions.appendChild(favoriteButton(note));
+
+  // 下载为 .md：把 Markdown 原文存到本地
+  const download = document.createElement('button');
+  download.type = 'button';
+  download.className = 'btn btn-secondary';
+  download.textContent = '下载 .md';
+  download.addEventListener('click', () => {
+    downloadMarkdown(markdownFilename(note.title, `笔记-${note.id}`), note.content_md || '');
+  });
+  actions.appendChild(download);
 
   const edit = document.createElement('button');
   edit.type = 'button';

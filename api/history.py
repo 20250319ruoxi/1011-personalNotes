@@ -6,6 +6,7 @@
 
 足迹由服务端在「读取笔记详情」与「读取/校验分享」成功时写入（见 api/notes.py、api/share.py），
 且仅记录已登录用户；本模块只负责查询与删除，列表接口本身无副作用。
+他人可用条目附带 `share_url`（/s/<token>）供前端跳转，本人笔记不带该字段。
 """
 from flask import Blueprint, request
 
@@ -20,7 +21,7 @@ bp = Blueprint("history", __name__, url_prefix="/api/history")
 
 def entry_to_dict(row, viewer_id):
     available = db_module.note_is_viewable(db_module.get_db(), row, viewer_id)
-    return {
+    entry = {
         "note": {
             "id": row["id"],
             "status": row["status"],
@@ -32,6 +33,11 @@ def entry_to_dict(row, viewer_id):
         "available": available,
         "viewed_at": row["viewed_at"],
     }
+    # 他人分享的笔记只能经 /s/<token> 打开：/api/notes/<id> 是作者侧路由，对非作者一律
+    # NOT_FOUND（仅靠猜 id 不得读取内容）。该地址仍受分享密码保护。
+    if available and row["user_id"] != viewer_id:
+        entry["share_url"] = f"/s/{row['share_token']}"
+    return entry
 
 
 @bp.get("")

@@ -2,7 +2,7 @@
  *
  * 复用 tests/js/dom-shim.mjs 最小 DOM 双端，在 Node 中真实调用 static/js/editor.js 的
  * renderEditor、store 的脏标记接口、router 的离开拦截与 beforeunload，并把结果序列化为
- * JSON 供 pytest 断言。fetch 用可控桩件替换，覆盖载入、预览、标签、保存、发布、失败分支。
+ * JSON 供 pytest 断言。fetch 用可控桩件替换，覆盖载入、预览、标签、保存草稿、保存并发布、失败分支。
  *
  * 注意：dom-shim 的 querySelector 不支持后代组合选择器，因此一律用逐层查询辅助函数。
  *
@@ -69,6 +69,10 @@ globalThis.fetch = async (path, opts = {}) => {
     if (saveFails) return errBody('CONTENT_TOO_LONG', '输入内容超出长度限制');
     savedNote = { ...savedNote, ...(opts.body ? JSON.parse(opts.body) : {}), id: savedNote.id };
     return okBody({ note: savedNote });
+  }
+  if (opts.method === 'POST' && url.endsWith('/share')) {
+    savedNote = { ...savedNote, status: 'public', share_token: 'tok-edit' };
+    return okBody({ share_url: '/s/tok-edit', has_password: false });
   }
   if (url.startsWith('/api/notes/')) {
     if (detailMode === 'notfound') return errBody('NOT_FOUND', '请求的内容不存在');
@@ -333,45 +337,25 @@ safe('saveDraftRead', () => {
 });
 
 /* ==========================================================================
-   J. 发布：先二次确认；取消不发请求；已发布再次发布不再确认
+   J. 存草稿：已发布笔记免疫降级（「发布」按钮已按需求移除）
    ========================================================================== */
-const publish = {};
-await fresh({});
-safe('publishOpen', () => { btnByText(appEl, '发布').click(); });
+const saveDraftKeeps = {};
+await fresh({ id: '7' }, { ...NOTE, status: 'private' });
+safe('saveDraftKeepsClick', () => { btnByText(appEl, '存草稿').click(); });
 await flush();
-safe('publishDialog', () => {
-  const dialog = dialogRoot.querySelector('.dialog');
-  publish.dialogTitle = dialog ? dialog.querySelector('.dialog-title').textContent : null;
-  publish.dialogMessage = dialog ? dialog.querySelector('.dialog-message').textContent : null;
-  publish.dialogRole = dialog ? dialog.getAttribute('role') : null;
-  publish.confirmText = dialog
-    ? (all(dialog, 'button').find((b) => b.textContent.trim() === '发布') || {}).textContent : null;
-  publish.cancelText = dialog
-    ? (all(dialog, 'button').find((b) => b.textContent.trim() === '取消') || {}).textContent : null;
-  const cancel = dialog ? all(dialog, 'button').find((b) => b.textContent.trim() === '取消') : null;
-  if (cancel) cancel.click();
+safe('saveDraftKeepsRead', () => {
+  const put = fetchCalls.find((c) => c.method === 'PUT');
+  saveDraftKeeps.path = put ? put.path : null;
+  saveDraftKeeps.body = put && put.opts.body ? JSON.parse(put.opts.body) : null;
+  saveDraftKeeps.dialog = dialogRoot.querySelector('.dialog') !== null;
+  saveDraftKeeps.toast = lastToast();
+  saveDraftKeeps.statusSave = field(appEl, '.status-save')
+    ? field(appEl, '.status-save').textContent : null;
+  saveDraftKeeps.buttons = all(appEl, 'button').map((b) => b.textContent.trim());
 });
-await flush();
-publish.fetchAfterCancel = fetchCalls.filter((c) => c.method !== 'GET').length;
-
-safe('publishReopen', () => { btnByText(appEl, '发布').click(); });
-await flush();
-safe('publishConfirm', () => {
-  const dialog = dialogRoot.querySelector('.dialog');
-  const confirm = dialog
-    ? all(dialog, 'button').find((b) => b.textContent.trim() === '发布') : null;
-  if (confirm) confirm.click();
-});
-await flush();
-safe('publishConfirmRead', () => {
-  const post = fetchCalls.find((c) => c.method === 'POST' && c.path === '/api/notes');
-  publish.body = post && post.opts.body ? JSON.parse(post.opts.body) : null;
-  publish.toast = lastToast();
-  publish.statusSave = field(appEl, '.status-save') ? field(appEl, '.status-save').textContent : null;
-}, null);
 
 /* ==========================================================================
-   K. 编辑模式载入 / 已发布笔记再次发布不再确认
+   K. 编辑模式载入
    ========================================================================== */
 const editMode = {};
 editMode.loadingSkeletons = await fresh({ id: '7' });
@@ -383,16 +367,6 @@ safe('editMode', () => {
   editMode.statusSave = field(appEl, '.status-save') ? field(appEl, '.status-save').textContent : null;
   editMode.statusTime = field(appEl, '.status-time') ? field(appEl, '.status-time').textContent : null;
 });
-
-await fresh({ id: '7' }, { ...NOTE, status: 'private' });
-safe('publishAgain', () => { btnByText(appEl, '发布').click(); });
-await flush();
-safe('publishAgainRead', () => {
-  publish.againDialog = dialogRoot.querySelector('.dialog') !== null;
-  const put = fetchCalls.find((c) => c.method === 'PUT');
-  publish.againPath = put ? put.path : null;
-  publish.againBody = put && put.opts.body ? JSON.parse(put.opts.body) : null;
-}, null);
 
 /* ==========================================================================
    L. 载入失败：NOT_FOUND → 空态
@@ -436,6 +410,70 @@ safe('failSaveRead', () => {
   failSave.toast = lastToast();
 });
 saveFails = false;
+
+/* ==========================================================================
+   O. 保存并发布：保存内容 + 开启分享 → 笔记转为只读
+   ========================================================================== */
+const savePublish = {};
+await fresh({ id: '7' }, { ...NOTE, status: 'draft' });
+safe('savePublishClick', () => { btnByText(appEl, '保存并发布').click(); });
+await flush();
+safe('savePublishDialog', () => {
+  const dialog = dialogRoot.querySelector('.dialog');
+  savePublish.dialogTitle = dialog ? dialog.querySelector('.dialog-title').textContent : null;
+  const confirm = dialog
+    ? all(dialog, 'button').find((b) => b.textContent.trim() === '保存并发布') : null;
+  savePublish.confirmText = confirm ? confirm.textContent.trim() : null;
+  const cancel = dialog ? all(dialog, 'button').find((b) => b.textContent.trim() === '取消') : null;
+  if (cancel) cancel.click();
+});
+await flush();
+savePublish.mutationsAfterCancel = fetchCalls.filter((c) => c.method !== 'GET').length;
+
+safe('savePublishReopen', () => { btnByText(appEl, '保存并发布').click(); });
+await flush();
+safe('savePublishConfirm', () => {
+  const dialog = dialogRoot.querySelector('.dialog');
+  const confirm = dialog
+    ? all(dialog, 'button').find((b) => b.textContent.trim() === '保存并发布') : null;
+  if (confirm) confirm.click();
+});
+await flush();
+safe('savePublishRead', () => {
+  savePublish.methods = fetchCalls
+    .filter((c) => c.method !== 'GET')
+    .map((c) => `${c.method} ${c.path}`);
+  const put = fetchCalls.find((c) => c.method === 'PUT');
+  savePublish.putBody = put && put.opts.body ? JSON.parse(put.opts.body) : null;
+  const post = fetchCalls.find((c) => c.method === 'POST' && c.path.endsWith('/share'));
+  savePublish.sharePath = post ? post.path : null;
+  savePublish.hasLockedNotice =
+    serialize(field(appEl, '.editor-wrap')).includes('已发布，不可编辑');
+  savePublish.buttons = all(appEl, 'button').map((b) => b.textContent.trim());
+  const title = field(appEl, '.editor-title');
+  savePublish.titleReadOnly = title ? title.readOnly : null;
+  savePublish.toast = lastToast();
+});
+
+/* ==========================================================================
+   P. 已分享（public）笔记 → 编辑器只读，且不再暴露任何写入口
+   ========================================================================== */
+const lockedNote = {};
+await fresh({ id: '7' }, { ...NOTE, status: 'public', share_token: 'tok-edit' });
+safe('lockedNote', () => {
+  const wrap = field(appEl, '.editor-wrap');
+  lockedNote.hasNotice = serialize(wrap).includes('已发布，不可编辑');
+  lockedNote.buttons = all(appEl, 'button').map((b) => b.textContent.trim());
+  const title = field(appEl, '.editor-title');
+  const area = sourceTextarea();
+  lockedNote.titleReadOnly = title ? title.readOnly : null;
+  lockedNote.contentReadOnly = area ? area.readOnly : null;
+  const tagInput = field(appEl, '.tag-input');
+  lockedNote.tagDisabled = tagInput ? tagInput.disabled : null;
+  lockedNote.hasFileInput = !!field(appEl, '.editor-file');
+  lockedNote.statusSave = field(appEl, '.status-save')
+    ? field(appEl, '.status-save').textContent : null;
+});
 
 /* ==========================================================================
    N. Ctrl/Cmd + S 存草稿并阻止默认行为
@@ -548,11 +586,13 @@ process.stdout.write(JSON.stringify({
   tags,
   suggest,
   saveDraft,
-  publish,
+  saveDraftKeeps,
   editMode,
   notFound,
   failSave,
   shortcut,
+  savePublish,
+  lockedNote,
   image,
   tabsToggle,
   scrollSync,

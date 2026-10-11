@@ -148,3 +148,49 @@ def test_favorites_payload_never_exposes_content_or_email(alice, bob_raw):
     assert "脱敏检查" not in raw_stale
     assert "甲" not in raw_stale, "失效条目不得泄露正文（连摘要也不返回）"
     assert "@example.com" not in raw_stale
+
+
+# ==========================================================================
+# 打开入口：他人分享的条目必须带 share_url
+# ==========================================================================
+
+def test_shared_entry_carries_share_url_for_viewers_only(alice, bob_raw):
+    """回归 master 反馈的「请求的内容不存在」。
+
+    收藏里他人分享的笔记只能经 `/s/<token>` 打开 —— `/api/notes/<id>` 是作者侧路由，
+    对非作者一律 NOT_FOUND。所以非本人的可用条目必须下发可直接导航的 share_url。
+    """
+    c, headers = alice
+    note_id = _note(c, headers)
+    c.post("/api/favorites", json={"note_id": note_id}, headers=headers)
+    mine = c.get("/api/favorites").get_json()["data"]["items"][0]
+    assert mine["available"] is True
+    assert "share_url" not in mine, "本人笔记走作者详情页，不需要分享地址"
+
+    token = _share(c, headers, note_id)
+    other, other_headers = bob_raw
+    assert other.post("/api/favorites", json={"note_id": note_id},
+                      headers=other_headers).get_json()["code"] == "OK"
+
+    theirs = other.get("/api/favorites").get_json()["data"]["items"][0]
+    assert theirs["available"] is True
+    assert theirs["share_url"] == f"/s/{token}"
+    assert other.get(f"/api/share/{token}").get_json()["code"] == "OK", "该地址可直接打开"
+
+    c.delete(f"/api/notes/{note_id}/share", headers=headers)
+    stale = other.get("/api/favorites").get_json()["data"]["items"][0]
+    assert stale["available"] is False
+    assert "share_url" not in stale, "失效条目不得再给出分享地址"
+
+
+def test_share_url_does_not_bypass_share_password(alice, bob_raw):
+    """给出地址 ≠ 给出内容：设密分享的 share_url 打开后仍要求输入密码。"""
+    c, headers = alice
+    note_id = _note(c, headers)
+    token = _share(c, headers, note_id, password="read1234")
+    other, other_headers = bob_raw
+    other.post("/api/favorites", json={"note_id": note_id}, headers=other_headers)
+
+    item = other.get("/api/favorites").get_json()["data"]["items"][0]
+    assert item["share_url"] == f"/s/{token}"
+    assert other.get(f"/api/share/{token}").get_json()["code"] == "SHARE_PASSWORD_REQUIRED"

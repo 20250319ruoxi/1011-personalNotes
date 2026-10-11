@@ -3,6 +3,8 @@
    本文件是本项目唯一的颜色与间距来源；其余 css 只能消费变量，禁止硬编码色值。
    ========================================================================== */
 
+
+
 :root {
   /* 色彩角色 */
   --c-page:        #FAF8F5;
@@ -33,6 +35,23 @@
   /* Markdown 行内代码底色（editor.css / notes.css 使用，避免在页面 css 硬编码色值） */
   --c-code-bg:        rgba(195, 164, 123, .16);
 
+  /* ==========================================================================
+     羊皮纸改版令牌（取色自 项目截图/02工作台.png、03写笔记.png、04笔记截图.png）
+     登录后页面：全屏羊皮纸底 + 暖白卡片；主页保持照片 hero，不使用本组令牌。
+     ========================================================================== */
+  --c-parchment:      #E9CFA4;   /* 羊皮纸兜底色（素材加载失败时） */
+  --c-card:           #FFF9F3;   /* 内容卡片暖白 */
+  --c-card-line:      #EADFCE;   /* 卡片内分隔线 */
+  --c-gold:           #8D6F45;   /* 主按钮填充（深金），白字 4.67:1 */
+  --c-gold-hover:     #7A5E38;
+  --c-on-gold:        #FFFFFF;   /* 深金底上的文字 */
+  --c-badge-ok-bg:    #E7F3ED;   /* 「已发布」徽标底 */
+  --c-badge-ok-text:  #2D693F;   /* 「已发布」徽标字，5.75:1 */
+  --c-badge-tag-bg:   #EDE1D5;   /* 标签徽标底 */
+  --c-badge-tag-text: #75513F;   /* 标签徽标字，5.44:1 */
+  --c-ink:            #4B3921;   /* 卡内正文（卡底 10.55:1） */
+  --c-ink-muted:      #7B695D;   /* 卡内次要文字（卡底 5.00:1，勿直接置于羊皮纸上） */
+
   /* 字体 */
   --font-sans: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   --fs-xs: 12px; --fs-sm: 14px; --fs-base: 16px;
@@ -59,7 +78,11 @@
   --bp-mobile: 768px;
   --bp-desktop: 1200px;
 }
+
+
 @media (max-width: 768px) { :root { --gutter: 16px; } }
+
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
@@ -68,8 +91,16 @@
    重置
    ========================================================================== */
 
+
+
+
+
 *, *::before, *::after { box-sizing: border-box; }
+
+
 html { -webkit-text-size-adjust: 100%; }
+
+
 
 body {
   margin: 0;
@@ -80,19 +111,59 @@ body {
   line-height: var(--lh-base);
 }
 
+/* 羊皮纸主题：登录后页面使用「全屏羊皮纸底 + 暖白卡片」（依据 项目截图/02-04）。
+   主页使用照片 hero，不套用该主题；主题类由 router.js 按匹配到的路由切换。
+   背景按 body 内容高度整体拉伸（100% 100%），使素材四角的罗盘/羽毛笔/花饰
+   分别落在页面四角，与截图一致。 */
+
+
+
+
+html.theme-parchment { min-height: 100%; }
+
+
+body.theme-parchment {
+  min-height: 100%;
+  background-color: var(--c-parchment);
+  background-image: url("/static/img/paper.jpg");
+  background-size: 100% 100%;
+  background-position: center top;
+  background-repeat: no-repeat;
+}
+
+
+
 h1, h2, h3, h4, p, figure, blockquote { margin: 0; }
+
+
 ul, ol { margin: 0; padding: 0; list-style: none; }
+
+
 img, svg { max-width: 100%; display: block; }
+
+
 hr { border: 0; border-top: var(--bd); margin: var(--sp-6) 0; }
 
+
+
 a { color: var(--c-info-strong); text-decoration: none; transition: color .15s; }
+
+
 a:hover { color: var(--c-link-hover); }
 
+
+
 button, input, textarea, select { font: inherit; color: inherit; }
+
+
 
 :focus-visible { outline: 2px solid var(--c-border-strong); outline-offset: 2px; }
 
 /* 屏幕阅读器专用文本 */
+
+
+
+
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
@@ -102,6 +173,10 @@ button, input, textarea, select { font: inherit; color: inherit; }
    布局
    ========================================================================== */
 
+
+
+
+
 .container {
   width: 100%;
   max-width: var(--page-max);
@@ -109,11 +184,21 @@ button, input, textarea, select { font: inherit; color: inherit; }
   padding: 0 var(--gutter);
 }
 
+
+
 .stack > * + * { margin-top: var(--sp-4); }
 
+
+
 h1 { font-size: var(--fs-h2); font-weight: 600; line-height: 1.3; }
+
+
 h2 { font-size: var(--fs-h3); font-weight: 600; line-height: 1.4; }
+
+
 h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
+
+
 
 .text-muted { color: var(--c-text-muted-strong); font-size: var(--fs-sm); }
 
@@ -121,6 +206,10 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
    按钮：主 / 次 / 幽灵 / 危险
    主按钮静止态用 --c-accent、hover 用 --c-primary，文字均为 --c-text，两态对比度均 ≥4.5:1
    ========================================================================== */
+
+
+
+
 
 .btn {
   display: inline-flex;
@@ -139,38 +228,72 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   cursor: pointer;
   transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s;
 }
+
+
 .btn:hover { text-decoration: none; }
+
+
 .btn:disabled, .btn[aria-disabled="true"] { opacity: .55; cursor: not-allowed; }
+
+
 
 .btn-primary {
   background: var(--c-accent);
   border-color: var(--c-accent);
   color: var(--c-text);
 }
+
+
 .btn-primary:hover { background: var(--c-primary); border-color: var(--c-primary); color: var(--c-text); }
+
+
 .btn-primary:active { background: var(--c-primary); border-color: var(--c-primary); color: var(--c-text); }
+
+/* 深金主按钮（依据 项目截图/02「新建文章」、「发布文章」）：白字 4.67:1 */
+.btn-gold {
+  background: var(--c-gold);
+  border-color: var(--c-gold);
+  color: var(--c-on-gold);
+}
+.btn-gold:hover { background: var(--c-gold-hover); border-color: var(--c-gold-hover); color: var(--c-on-gold); }
+
+
 
 .btn-secondary {
   background: transparent;
   border-color: var(--c-border-strong);
   color: var(--c-text);
 }
+
+
 .btn-secondary:hover { background: var(--c-surface); border-color: var(--c-link-hover); color: var(--c-text); }
 
 /* 幽灵按钮：hero 的「了解更多」使用，描边 + 透明底 */
+
+
+
+
 .btn-ghost {
   background: transparent;
   border-color: var(--c-border-strong);
   color: var(--c-text);
 }
+
+
 .btn-ghost:hover { background: var(--c-surface); border-color: var(--c-link-hover); color: var(--c-text); }
+
+
 
 .btn-danger {
   background: var(--c-surface);
   border-color: var(--c-danger-strong);
   color: var(--c-danger-strong);
 }
+
+
 .btn-danger:hover { background: var(--c-danger-strong); border-color: var(--c-danger-strong); color: var(--c-surface); }
+
+
 
 .btn-block { width: 100%; }
 
@@ -178,12 +301,20 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
    表单：.field
    ========================================================================== */
 
+
+
+
+
 .field { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+
 
 .field > label {
   font-size: var(--fs-sm);
   color: var(--c-text-muted-strong);
 }
+
+
 
 .field input, .field textarea, .field select {
   width: 100%;
@@ -194,25 +325,43 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   border-radius: var(--r-1);
   transition: border-color .15s, box-shadow .15s;
 }
+
+
 .field textarea { min-height: 160px; resize: vertical; line-height: var(--lh-reading); }
 
+
+
 .field input:hover, .field textarea:hover, .field select:hover { border-color: var(--c-primary); }
+
+
 .field input:focus, .field textarea:focus, .field select:focus {
   outline: none;
   border-color: var(--c-primary-hover);
   box-shadow: 0 0 0 2px var(--c-accent);
 }
 
+
+
 .field-hint { font-size: var(--fs-xs); color: var(--c-text-muted-strong); }
+
+
 
 .field-error { font-size: var(--fs-xs); color: var(--c-danger-strong); }
 
 /* 字段级错误：红色下划线 + 错误文案 */
+
+
+
+
 .field.is-invalid input, .field.is-invalid textarea, .field.is-invalid select { border-color: var(--c-danger-strong); }
 
 /* ==========================================================================
    卡片
    ========================================================================== */
+
+
+
+
 
 .card {
   background: var(--c-surface);
@@ -227,24 +376,32 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
    纹理底 + 1px 暖色描边 + 极轻内阴影；正文区需叠加半透明暖白层把纹理强度降到 6% 以下
    ========================================================================== */
 
+
+
+
+
 .paper {
   position: relative;
-  background-color: var(--c-paper-fallback);
-  background-image: url("/static/img/paper.jpg");
-  background-size: cover;
-  background-position: center;
+  background-color: var(--c-card);
   border: var(--bd);
   border-radius: var(--r-2);
   box-shadow: var(--sd-card), inset 0 1px 0 rgba(255, 255, 255, .5);
 }
 
+
+
 .paper-padded { padding: var(--sp-8); }
+
+
 @media (max-width: 768px) { .paper-padded { padding: var(--sp-4); } }
 
-/* 正文阅读层：压暗纹理，保证长文可读 */
+/* 正文阅读层：暖白底，保证长文可读 */
+
+
+
+
 .paper-reading {
-  background-color: var(--c-paper-fallback);
-  background-image: none;
+  background-color: var(--c-card);
   color: var(--c-text);
   line-height: var(--lh-reading);
   max-width: var(--reading-max);
@@ -256,6 +413,10 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
    顶栏：未登录态由 Phase 2 交付，已登录态由 Phase 3 填充
    ========================================================================== */
 
+
+
+
+
 .app-header {
   background: var(--c-surface);
   border-bottom: var(--bd);
@@ -265,7 +426,13 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
 }
 
 /* 滚动后加阴影（由 ui.js 监听 scroll 切换该类） */
+
+
+
+
 .app-header.is-scrolled { box-shadow: var(--sd-card); }
+
+
 
 .app-nav {
   display: flex;
@@ -278,6 +445,8 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   padding: 0 var(--gutter);
 }
 
+
+
 .nav-brand {
   display: inline-flex;
   align-items: center;
@@ -286,21 +455,35 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   font-weight: 600;
   color: var(--c-text);
 }
+
+
 .nav-brand:hover { color: var(--c-text); text-decoration: none; }
+
+
 .nav-brand img { width: 32px; height: 32px; }
+
+
 
 .nav-drawer { display: flex; align-items: center; gap: var(--sp-6); }
 
 /* 移动端抽屉遮罩：桌面始终隐藏 */
+
+
+
+
 .nav-scrim { display: none; }
 
-.nav-links, .nav-user {
+
+
+.nav-links {
   display: flex;
   align-items: center;
   gap: var(--sp-4);
 }
 
-.nav-links a, .nav-user a {
+
+
+.nav-links a, .nav-links button {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -309,26 +492,21 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   font-size: var(--fs-base);
   transition: color .15s;
 }
-.nav-links a:hover, .nav-user a:hover { color: var(--c-link-hover); }
+
+
+.nav-links a:hover, .nav-links button:hover { color: var(--c-link-hover); }
+
+
 .nav-links a.is-active, .nav-links a[aria-current="page"] {
   color: var(--c-link-hover);
   box-shadow: inset 0 -2px 0 var(--c-accent);
 }
 
-.nav-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--c-accent);
-  color: var(--c-text);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
-
 /* 汉堡按钮：默认隐藏，≤768px 出现 */
+
+
+
+
 .nav-toggle {
   display: none;
   align-items: center;
@@ -343,9 +521,13 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   cursor: pointer;
 }
 
+
+
 @media (min-width: 768px) {
   .nav-toggle { display: none; }
 }
+
+
 
 @media (max-width: 768px) {
   .nav-toggle { display: inline-flex; }
@@ -383,8 +565,8 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   }
   .nav-drawer.is-open { transform: translateX(0); visibility: visible; }
 
-  .nav-links, .nav-user { flex-direction: column; align-items: stretch; gap: 0; }
-  .nav-links a, .nav-user a {
+  .nav-links { flex-direction: column; align-items: stretch; gap: 0; }
+  .nav-links a, .nav-links button {
     min-height: 44px;
     border-bottom: var(--bd);
   }
@@ -394,75 +576,43 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
    顶栏已登录态：头像按钮 + 下拉菜单（写笔记 / 我的主页 / 头像菜单）
    ========================================================================== */
 
-.nav-user { position: relative; }
-
-.avatar-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: var(--bd);
-  border-radius: 50%;
-  background: var(--c-accent);
-  color: var(--c-text);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  cursor: pointer;
+/* 徽标（依据 项目截图/02「已发布」、04「标签」）：工作台与详情页共用 */
+.badge-ok {
+  background: var(--c-badge-ok-bg);
+  color: var(--c-badge-ok-text);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: var(--fs-xs);
+  white-space: nowrap;
 }
-.avatar-btn:hover { background: var(--c-primary); }
 
-.avatar-menu {
-  position: absolute;
-  top: calc(100% + var(--sp-2));
-  right: 0;
-  z-index: 40;
-  min-width: 160px;
-  display: none;
-  flex-direction: column;
-  padding: var(--sp-2);
-  background: var(--c-surface);
-  border: var(--bd);
-  border-radius: var(--r-1);
-  box-shadow: var(--sd-float);
+.badge-tag {
+  background: var(--c-badge-tag-bg);
+  color: var(--c-badge-tag-text);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: var(--fs-xs);
+  white-space: nowrap;
 }
-.avatar-menu.is-open { display: flex; }
 
-.avatar-menu a,
-.avatar-menu button {
-  display: block;
-  width: 100%;
-  min-height: 44px;
-  padding: 0 var(--sp-3);
-  text-align: left;
-  background: transparent;
-  border: 0;
-  border-radius: var(--r-1);
-  color: var(--c-text);
-  font-size: var(--fs-base);
-  cursor: pointer;
-}
-.avatar-menu a:hover,
-.avatar-menu button:hover { background: var(--c-page); color: var(--c-link-hover); }
+/* ==========================================================================
+   顶栏图标与「退出」项（已登录态：我的文章 / 个人主页 / 关于 / 退出）
+   ========================================================================== */
+
+.nav-icon { display: inline-flex; align-items: center; margin-right: var(--sp-2); }
 
 @media (max-width: 768px) {
-  /* ≤768px：头像菜单并入抽屉，头像按钮隐藏，菜单项常驻 */
-  .nav-user .avatar-btn { display: none; }
-  .avatar-menu {
-    position: static;
-    display: flex;
-    min-width: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-  }
+  .nav-links > li { display: flex; }
+  .nav-links a, .nav-links button { width: 100%; }
 }
 
 /* ==========================================================================
    全局 toast：右上角，2.5s 自动消失（悬停暂停由 ui.js 控制），多条堆叠
    ========================================================================== */
+
+
+
+
 
 .toast-root {
   position: fixed;
@@ -474,6 +624,8 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   gap: var(--sp-2);
   pointer-events: none;
 }
+
+
 
 .toast {
   min-width: 200px;
@@ -488,16 +640,28 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   animation: toast-in .2s ease-out;
 }
 
+
+
 .toast-success { background: var(--c-success-strong); }
+
+
 .toast-error   { background: var(--c-danger-strong); }
+
+
 .toast-info    { background: var(--c-info-strong); }
 
+
+
 .toast.is-leaving { animation: toast-out .2s ease-in forwards; }
+
+
 
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+
 @keyframes toast-out {
   from { opacity: 1; transform: translateY(0); }
   to   { opacity: 0; transform: translateY(-8px); }
@@ -506,6 +670,10 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
 /* ==========================================================================
    二次确认弹窗：role="dialog" + aria-modal，焦点锁由 ui.js 实现
    ========================================================================== */
+
+
+
+
 
 .dialog-mask {
   position: fixed;
@@ -519,6 +687,8 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   animation: dialog-fade .2s ease-out;
 }
 
+
+
 .dialog {
   width: 100%;
   max-width: 420px;
@@ -530,8 +700,14 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   animation: dialog-rise .2s ease-out;
 }
 
+
+
 .dialog-title { font-size: var(--fs-h3); font-weight: 600; margin-bottom: var(--sp-3); }
+
+
 .dialog-message { color: var(--c-text); }
+
+
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
@@ -539,7 +715,11 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   margin-top: var(--sp-6);
 }
 
+
+
 @keyframes dialog-fade { from { opacity: 0; } to { opacity: 1; } }
+
+
 @keyframes dialog-rise {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -549,7 +729,13 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
    骨架加载片
    ========================================================================== */
 
+
+
+
+
 .skeleton-list { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+
 
 .skeleton {
   height: 96px;
@@ -560,6 +746,8 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   animation: skeleton-shimmer 1.2s linear infinite;
 }
 
+
+
 @keyframes skeleton-shimmer {
   from { background-position: 200% 0; }
   to   { background-position: -200% 0; }
@@ -568,6 +756,10 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
 /* ==========================================================================
    空态
    ========================================================================== */
+
+
+
+
 
 .empty-state {
   display: flex;
@@ -579,5 +771,7 @@ h3 { font-size: var(--fs-base); font-weight: 600; line-height: 1.5; }
   text-align: center;
   color: var(--c-text-muted-strong);
 }
+
+
 
 .empty-state h2 { color: var(--c-text); }

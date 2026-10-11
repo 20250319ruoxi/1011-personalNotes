@@ -3,7 +3,7 @@
 本环境无浏览器，因此用 `tests/js/render_auth.mjs`（复用 `tests/js/dom-shim.mjs` 的最小 DOM
 双端）在 Node 中真实调用 `static/js/auth.js` 的 `renderLogin` / `renderRegister`、`ui.js` 的
 已登录顶栏，以及 `router.js` 的登录守卫，断言生成的标记、字段级校验文案、redirect 白名单
-判定、头像菜单与退出确认行为。浏览器像素观感另见 `tests/manual/visual-checklist.md`。
+判定、顶栏导航与退出确认行为。浏览器像素观感另见 `tests/manual/visual-checklist.md`。
 """
 
 from __future__ import annotations
@@ -172,11 +172,9 @@ def test_redirect_whitelist_predicate(rendered):
     r = block(rendered, "redirect")
     assert r["slash"] == "/notes"
     assert r["slashWithQuery"] == "/notes?page=2"
-    assert r["doubleSlash"] == "/me", "//evil.example 必须被拒绝"
-    assert r["absolute"] == "/me", "绝对 URL 必须被拒绝"
-    assert r["empty"] == "/me"
-    assert r["none"] == "/me"
-    assert r["backslash"] == "/me"
+    for key in ("doubleSlash", "absolute", "empty", "none", "backslash"):
+        assert r[key] == "/fallback", f"{key} 必须被拒绝并回退到兜底路径"
+    assert r["defaultLanding"] == "/dashboard", "登录后的默认落地页是 /dashboard"
 
 
 # --------------------------------------------------------------------------
@@ -208,34 +206,26 @@ def test_unregistered_route_does_not_crash_guard(rendered):
 # --------------------------------------------------------------------------
 
 def test_header_logged_in_links(rendered):
+    """2026-10 改版：已登录顶栏为「我的文章 / 个人主页 / 关于 / 退出」，无「写笔记」入口。"""
     html = block(rendered, "headerLoggedIn")
-    for href, label in (("/notes/new", "写笔记"), ("/me", "我的主页"), ("/about", "关于")):
+    for href, label in (("/notes", "我的文章"), ("/me", "个人主页"), ("/about", "关于")):
         found = anchor_by_href(html, href)
         assert found is not None, f"已登录顶栏缺少 {label} 链接"
         assert label in found[1]
+    assert anchor_by_href(html, "/notes/new") is None, "编辑器入口改由「我的文章」页承担"
 
 
-def test_header_avatar_button_shows_first_character(rendered):
-    html = block(rendered, "headerLoggedIn")
-    assert 'class="avatar-btn"' in html
-    assert 'aria-haspopup="menu"' in html
-    assert 'aria-expanded="false"' in html
-    btn = re.search(r'<button\b[^>]*class="[^"]*avatar-btn[^"]*"[^>]*>(.*?)</button>', html, re.S)
-    assert btn is not None
-    assert "a" in btn.group(1), "头像应显示用户名首字（alice → a）"
-
-
-def test_avatar_menu_items_and_open_state(rendered):
-    menu = block(rendered, "menu")
-    assert menu["before"]["open"] is False
-    assert menu["before"]["expanded"] == "false"
-    assert menu["after"]["open"] is True
-    assert menu["after"]["expanded"] == "true"
-    assert menu["after"]["focusOnFirstItem"] is True
-
-    items = menu["items"]
-    assert items[0]["text"] == "个人主页" and items[0]["href"] == "/me"
-    assert items[-1]["text"] == "退出登录"
+def test_header_nav_items_and_active_state(rendered):
+    """四个直链项的顺序、标签名、图标与当前项标记；头像下拉菜单已移除。"""
+    n = block(rendered, "nav")
+    assert [i["text"] for i in n["items"]] == ["我的文章", "个人主页", "关于", "退出"]
+    assert [i["tag"] for i in n["items"]] == ["a", "a", "a", "button"]
+    assert [i["href"] for i in n["items"]] == ["/notes", "/me", "/about", ""]
+    assert n["items"][0]["icon"] is True and n["items"][1]["icon"] is True
+    assert n["items"][2]["icon"] is False, "「关于」不带图标"
+    assert n["items"][0]["current"] == "page", "路径 /notes 对应项需标记 aria-current"
+    assert n["hasAvatar"] is False, "头像按钮与下拉菜单已按改版移除"
+    assert n["hasLogout"] is True
 
 
 def test_logout_uses_confirm_dialog_with_escape(rendered):
@@ -296,7 +286,8 @@ def test_auth_page_layout(auth_css):
     assert "display:grid" in body
     assert "place-items:center" in body
     assert "calc(100vh - var(--header-h))" in body
-    assert "background:var(--c-page)" in body
+    # 2026-10 改版：认证页底色改为透明，露出全屏羊皮纸背景
+    assert "background:transparent" in body
 
 
 def test_auth_card_dimensions(auth_css):
@@ -327,18 +318,24 @@ def test_auth_field_error_and_submit_button(auth_css):
     assert btn is not None and "width:100%" in btn and "height:44px" in btn
 
 
-def test_avatar_button_is_first_char_color_block(base_css_text):
-    body = _rule(base_css_text, ".avatar-btn")
-    assert body is not None
-    assert "width:36px" in body and "height:36px" in body
-    assert "border-radius:50%" in body
-    assert "background:var(--c-accent)" in body
-    assert "color:var(--c-text)" in body
+def test_nav_icon_rule(base_css_text):
+    """改版后顶栏图标：.nav-icon 内联弹性盒 + 右侧间距（替代原 .avatar-btn 色块）。"""
+    icon = _rule(base_css_text, ".nav-icon")
+    assert icon is not None, "缺少 .nav-icon"
+    assert "display:inline-flex" in icon
+    assert "align-items:center" in icon
+    assert "margin-right:var(--sp-2)" in icon
 
 
-def test_avatar_menu_hidden_by_default_and_shown_when_open(base_css_text):
-    menu = _rule(base_css_text, ".avatar-menu")
-    assert menu is not None and "display:none" in menu
-    opened = _rule(base_css_text, ".avatar-menu.is-open")
-    assert opened is not None and "display:flex" in opened
+def test_nav_logout_shares_link_layout(base_css_text):
+    """「退出」是 button，必须与其余链接共用同一套排版规则。"""
+    rule = _rule(base_css_text, ".nav-links a, .nav-links button")
+    assert rule is not None, "缺少 .nav-links a, .nav-links button（退出按钮需与链接同排版）"
+    assert "display:block" in rule or "display:flex" in rule or "padding:" in rule
+
+
+def test_avatar_menu_rules_are_gone(base_css_text):
+    """改版移除了头像按钮与下拉菜单，不得残留对应样式。"""
+    assert _rule(base_css_text, ".avatar-btn") is None, "不得残留 .avatar-btn 样式"
+    assert _rule(base_css_text, ".avatar-menu") is None, "不得残留 .avatar-menu 样式"
 

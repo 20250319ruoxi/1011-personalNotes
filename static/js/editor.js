@@ -1,4 +1,4 @@
-// editor.js — 写笔记 / 编辑笔记：分栏实时预览、标签联想、存草稿/发布、脏标记与离开拦截。
+// editor.js — 写笔记 / 编辑笔记：分栏实时预览、标签联想、存草稿 / 保存并发布、脏标记与离开拦截。
 // 约束：预览只能经 markdown.js 的 renderMarkdown() 输出；textarea.value 不得直接赋给 innerHTML。
 //       不使用内联 style 与内联事件（Phase 8 启用不含 'unsafe-inline' 的严格 CSP）。
 import { api } from './api.js';
@@ -121,11 +121,11 @@ function mount(wrap, note, noteId) {
   draftBtn.type = 'button';
   draftBtn.className = 'btn btn-ghost';
   draftBtn.textContent = '存草稿';
-  const publishBtn = document.createElement('button');
-  publishBtn.type = 'button';
-  publishBtn.className = 'btn btn-primary';
-  publishBtn.textContent = '发布';
-  head.append(draftBtn, publishBtn);
+  const savePublishBtn = document.createElement('button');
+  savePublishBtn.type = 'button';
+  savePublishBtn.className = 'btn btn-gold';
+  savePublishBtn.textContent = '保存并发布';
+  head.append(draftBtn, savePublishBtn);
   paper.appendChild(head);
 
   /* ---- 移动端「编辑 / 预览」切换 ---- */
@@ -345,7 +345,7 @@ function mount(wrap, note, noteId) {
   previewTab.addEventListener('click', () => selectPane(true));
 
   /* ==========================================================================
-     保存 / 发布
+     保存草稿 / 保存并发布
      ========================================================================== */
 
   function buildPayload(status) {
@@ -357,32 +357,27 @@ function mount(wrap, note, noteId) {
     };
   }
 
-  async function save(status) {
-    // 首次发布（新建或仍是草稿）先做一次轻量确认
-    if (status === 'private' && (state.status === 'new' || state.status === 'draft')) {
-      const confirmed = await confirmDialog({
-        title: '发布笔记',
-        message: '发布后笔记将显示为「私密」，只有你自己可见。确定发布吗？',
-        confirmText: '发布',
-      });
-      if (!confirmed) return;
-    }
+  /* 「存草稿」只保存内容：新建 / 草稿 → draft；已发布 / 已分享 → 状态不变。
+     理由：已分享的笔记被降级会掐断仍在生效的分享链接，已发布的笔记被降级则会从
+     「已发布」筛选里消失。状态的改变只由分享接口显式触发。 */
+  async function saveDraft() {
+    const nextStatus = (state.status === 'new' || state.status === 'draft') ? 'draft' : state.status;
 
     try {
       const data = state.id
-        ? await api.put(`/api/notes/${state.id}`, buildPayload(status))
-        : await api.post('/api/notes', buildPayload(status));
+        ? await api.put(`/api/notes/${state.id}`, buildPayload(nextStatus))
+        : await api.post('/api/notes', buildPayload(nextStatus));
       const saved = (data && data.note) || {};
 
       state.id = saved.id || state.id;
-      state.status = saved.status || status;
+      state.status = saved.status || nextStatus;
       state.updatedAt = saved.updated_at || state.updatedAt;
 
       store.setDirty(false);
       titleInput.classList.remove('is-dirty');
       saveText = '已保存';
       refreshStatus();
-      toast(status === 'draft' ? '已保存为草稿' : '已发布', 'success');
+      toast(nextStatus === 'draft' ? '已保存为草稿' : '已保存，文章保持「已发布」', 'success');
 
       // 新建状态保存成功后换成编辑地址，避免二次提交产生重复笔记
       if (location.pathname === '/notes/new' && state.id) {
@@ -395,11 +390,40 @@ function mount(wrap, note, noteId) {
     }
   }
 
-  const saveDraft = () => save('draft');
-  const publish = () => save('private');
+  /* 保存内容 + 立即开启分享：一步把草稿/已发布变成「已分享」 */
+  async function saveAndPublish() {
+    const confirmed = await confirmDialog({
+      title: '保存并发布',
+      message: '发布后会生成分享链接，笔记将变为不可编辑。确定吗？',
+      confirmText: '保存并发布',
+    });
+    if (!confirmed) return;
+
+    // 内容仍按「离开草稿后不改状态」的规则保存，分享状态只由分享接口设置
+    const nextStatus = (state.status === 'new' || state.status === 'draft') ? 'private' : state.status;
+    try {
+      const data = state.id
+        ? await api.put(`/api/notes/${state.id}`, buildPayload(nextStatus))
+        : await api.post('/api/notes', buildPayload(nextStatus));
+      const saved = (data && data.note) || {};
+      const id = saved.id || state.id;
+
+      await api.post(`/api/notes/${id}/share`, { password: '' });
+
+      state.id = id;
+      store.setDirty(false);
+      if (location.pathname === '/notes/new') history.replaceState({}, '', `/notes/${id}/edit`);
+      toast('已发布并开启分享', 'success');
+      mount(wrap, Object.assign({}, saved, { id, status: 'public' }), String(id));
+    } catch (_) {
+      // 错误文案由 api.js 统一以 toast 展示后端 message
+      saveText = '操作失败，请重试';
+      refreshStatus();
+    }
+  }
 
   draftBtn.addEventListener('click', saveDraft);
-  publishBtn.addEventListener('click', publish);
+  savePublishBtn.addEventListener('click', saveAndPublish);
   activeEditor = { wrap, saveDraft };
 
   /* ---- 离开拦截 ---- */
@@ -431,6 +455,48 @@ function mount(wrap, note, noteId) {
     } catch (_) { /* 文案由 api.js 统一 toast */ }
     fileInput.value = '';
   });
+
+  /* ==========================================================================
+     已分享（public）笔记 → 只读
+     写接口只接受 draft / private（public 只能由分享接口进入），因此对已分享笔记
+     保存必然被后端拒绝。与其让用户撞到「参数不合法」，不如直接置为只读。
+     ========================================================================== */
+
+  if (state.status === 'public') {
+    titleInput.readOnly = true;
+    textarea.readOnly = true;
+    tagInput.disabled = true;
+    tagInput.setAttribute('placeholder', '');
+    draftBtn.remove();
+    savePublishBtn.remove();
+    toolbar.remove();
+    store.setDirty(false);
+    store.dirtyGuard = null;
+
+    const box = document.createElement('div');
+    box.className = 'editor-locked';
+    box.setAttribute('role', 'status');
+
+    const boxTitle = document.createElement('p');
+    boxTitle.className = 'editor-locked-title';
+    boxTitle.textContent = '已发布，不可编辑';
+
+    const boxHint = document.createElement('p');
+    boxHint.className = 'editor-locked-hint';
+    boxHint.textContent = '这篇笔记已开启分享，内容已锁定。如需修改，请先在详情页关闭分享。';
+
+    const openDetail = document.createElement('button');
+    openDetail.type = 'button';
+    openDetail.className = 'btn btn-secondary';
+    openDetail.textContent = '打开详情页';
+    openDetail.addEventListener('click', () => navigate(`/notes/${state.id}`));
+
+    box.append(boxTitle, boxHint, openDetail);
+    paper.insertBefore(box, head);
+
+    saveText = '已发布';
+    refreshStatus();
+  }
 }
 
 /* ==========================================================================

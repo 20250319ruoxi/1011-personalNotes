@@ -21,7 +21,6 @@ HARNESS = ROOT / "tests" / "js" / "render_editor.mjs"
 
 TITLE_PLACEHOLDER = "请输入标题"
 TAG_PLACEHOLDER = "添加标签后按回车"
-PUBLISH_CONFIRM = "发布后笔记将显示为「私密」，只有你自己可见。确定发布吗？"
 DISCARD_TITLE = "放弃未保存的更改？"
 DISCARD_MESSAGE = "当前笔记有未保存的修改，离开将丢失这些内容。"
 
@@ -171,7 +170,7 @@ def test_editor_new_mode_structure(rendered):
     assert new["titlePlaceholder"] == TITLE_PLACEHOLDER
     assert new["titleMaxlength"] == "200"
     assert new["tagPlaceholder"] == TAG_PLACEHOLDER
-    for label in ("存草稿", "发布", "插入图片"):
+    for label in ("存草稿", "保存并发布", "插入图片"):
         assert label in new["buttons"], f"缺少按钮「{label}」"
     assert new["textarea"] is True
     assert "markdown-body" in new["previewClass"]
@@ -192,7 +191,7 @@ def test_editor_interactive_elements_are_reachable_in_dom_order(rendered):
     order = new["interactiveOrder"]
     labels = [item["text"] or item["placeholder"] for item in order]
     assert labels == [
-        TITLE_PLACEHOLDER, TAG_PLACEHOLDER, "存草稿", "发布", "编辑", "预览",
+        TITLE_PLACEHOLDER, TAG_PLACEHOLDER, "存草稿", "保存并发布", "编辑", "预览",
         "在这里写下你的想法，支持 Markdown", "插入图片", "",
     ], labels
     assert [item["tag"] for item in order] == [
@@ -256,7 +255,7 @@ def test_tag_suggestions_capped_and_clickable(rendered):
 
 
 # ==========================================================================
-# 存草稿 / 发布
+# 存草稿 / 保存并发布
 # ==========================================================================
 
 def test_save_draft_posts_and_rewrites_url(rendered):
@@ -273,28 +272,57 @@ def test_save_draft_posts_and_rewrites_url(rendered):
     assert d["storeDirty"] is False
 
 
-def test_publish_requires_confirmation_with_exact_copy(rendered):
-    p = block(rendered, "publish")
-    assert p["dialogTitle"] == "发布笔记"
-    assert p["dialogMessage"] == PUBLISH_CONFIRM
-    assert p["dialogRole"] == "dialog"
-    assert p["confirmText"] == "发布"
-    assert p["cancelText"] == "取消"
-    assert p["fetchAfterCancel"] == 0, "取消后不得发起保存请求"
+def test_publish_button_is_removed(rendered):
+    """「发布」已按需求收掉：编辑器只剩「存草稿」与「保存并发布」。"""
+    new = block(rendered, "newMode")
+    assert "发布" not in new["buttons"], new["buttons"]
+    assert "保存并发布" in new["buttons"]
 
 
-def test_publish_confirmed_saves_private_and_toasts(rendered):
-    p = block(rendered, "publish")
-    assert p["body"]["status"] == "private"
-    assert p["toast"] == "已发布"
+def test_save_draft_on_published_note_keeps_status(rendered):
+    p = block(rendered, "saveDraftKeeps")
+    assert p["dialog"] is False, "「存草稿」不做二次确认"
+    assert p["path"] == "/api/notes/7"
+    assert p["body"]["status"] == "private", "已发布笔记免疫降级"
+    assert p["toast"] == "已保存，文章保持「已发布」"
     assert p["statusSave"] == "已保存"
+    assert "保存并发布" in p["buttons"]
 
 
-def test_publish_again_on_private_note_skips_dialog(rendered):
-    p = block(rendered, "publish")
-    assert p["againDialog"] is False, "已发布笔记再次发布不再二次确认"
-    assert p["againPath"] == "/api/notes/7"
-    assert p["againBody"]["status"] == "private"
+# ==========================================================================
+# 保存并发布 / 已分享笔记只读
+# ==========================================================================
+
+def test_save_and_publish_requires_confirmation(rendered):
+    p = block(rendered, "savePublish")
+    assert p["dialogTitle"] == "保存并发布"
+    assert p["confirmText"] == "保存并发布"
+    assert p["mutationsAfterCancel"] == 0, "取消后不得发起保存或分享请求"
+
+
+def test_save_and_publish_saves_then_shares_then_locks(rendered):
+    p = block(rendered, "savePublish")
+    assert p["methods"] == ["PUT /api/notes/7", "POST /api/notes/7/share"], p["methods"]
+    assert p["putBody"]["status"] == "private", "内容仍按「离开草稿后不改状态」的规则保存"
+    assert p["sharePath"] == "/api/notes/7/share"
+    assert p["hasLockedNotice"] is True, "发布后编辑器应立即转为只读"
+    assert p["titleReadOnly"] is True
+    assert p["toast"] == "已发布并开启分享"
+    for gone in ("存草稿", "发布", "保存并发布", "插入图片"):
+        assert gone not in p["buttons"], f"发布后不得再显示「{gone}」"
+
+
+def test_shared_note_editor_is_read_only(rendered):
+    p = block(rendered, "lockedNote")
+    assert p["hasNotice"] is True, "已分享笔记必须提示「已发布，不可编辑」"
+    assert p["titleReadOnly"] is True
+    assert p["contentReadOnly"] is True
+    assert p["tagDisabled"] is True
+    assert p["hasFileInput"] is False, "只读态不得保留插图入口"
+    for gone in ("存草稿", "发布", "保存并发布", "插入图片"):
+        assert gone not in p["buttons"], f"只读态不得出现「{gone}」"
+    assert "打开详情页" in p["buttons"]
+    assert p["statusSave"] == "已发布"
 
 
 # ==========================================================================
@@ -380,7 +408,7 @@ def test_code_background_token_exists_in_base(base_css_text):
     assert tokens.get("c-code-bg", "").strip() == "rgba(195, 164, 123, .16)"
 
 
-def test_editor_wrap_and_paper(editor_css):
+def test_editor_wrap_and_card(editor_css):
     wrap = find_rule(editor_css, ".editor-wrap")
     assert wrap is not None
     assert prop(wrap, "max-width:var(--page-max)")
@@ -391,7 +419,9 @@ def test_editor_wrap_and_paper(editor_css):
     assert paper is not None
     assert prop(paper, "border-radius:var(--r-2)")
     assert prop(paper, "padding:var(--sp-6)")
-    assert prop(paper, 'background-image:url("/static/img/paper.jpg")')
+    # 2026-10 改版：编辑卡片由羊皮纸纹理改为暖白卡面，羊皮纸移作整页背景
+    assert prop(paper, "background-color:var(--c-card)")
+    assert prop(paper, "border:var(--bd)")
 
 
 def test_editor_head_and_title(editor_css):

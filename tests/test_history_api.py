@@ -182,3 +182,21 @@ def test_password_share_verify_success_records_history(alice, bob_raw):
     items = other.get("/api/history").get_json()["data"]["items"]
     assert len(items) == 1
     assert items[0]["author"]["username"] == "alice"
+
+
+def test_history_entry_carries_share_url_for_viewers_only(alice, bob_raw):
+    """足迹与收藏同一口径：他人分享的笔记只能经 /s/<token> 打开，本人笔记不带 share_url。"""
+    c, headers = alice
+    note_id = _note(c, headers)
+    c.get(f"/api/notes/{note_id}")
+    assert "share_url" not in c.get("/api/history").get_json()["data"]["items"][0], \
+        "本人笔记走作者详情页"
+
+    token = c.post(f"/api/notes/{note_id}/share", json={},
+                   headers=headers).get_json()["data"]["share_url"].rsplit("/", 1)[-1]
+    other, _other_headers = bob_raw
+    other.get(f"/api/share/{token}")
+    entry = other.get("/api/history").get_json()["data"]["items"][0]
+    assert entry["available"] is True
+    assert entry["share_url"] == f"/s/{token}"
+    assert other.get(f"/api/share/{token}").get_json()["code"] == "OK"

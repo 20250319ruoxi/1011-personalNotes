@@ -35,7 +35,6 @@ PASSWORD_BUTTON = "修改密码"
 CLEAR_HISTORY = "清空浏览记录"
 CLEAR_MESSAGE = "确定要清空全部浏览记录吗？此操作不可恢复。"
 CLEAR_CONFIRM = "清空"
-BLOCKED_MESSAGE = "需要先通过分享链接访问并解锁"
 NO_BIO = "还没有填写简介"
 SAVED_TOAST = "已保存"
 PASSWORD_TOAST = "密码已修改"
@@ -240,7 +239,10 @@ def test_save_profile_puts_and_updates_store_and_header(rendered):
     assert s["toast"] == SAVED_TOAST
     assert s["cardUsername"] == "zoe", "页面卡片必须同步更新"
     assert s["cardBio"] == "新的简介"
-    assert s["headerAvatarText"] == "z", "顶栏头像色块必须即时跟随新用户名"
+    assert s["headerAvatarText"] is None, "改版后顶栏已无头像色块（头像菜单被移除）"
+    assert "我的文章" in s["headerText"] or "个人主页" in s["headerText"], (
+        "顶栏必须已按新导航重绘（store 通知触发 renderHeader）"
+    )
 
 
 # ==========================================================================
@@ -322,19 +324,28 @@ def test_favorites_list_available_and_stale_entries(rendered):
     assert f["getPath"].startswith("/api/favorites?")
 
 
-def test_favorites_open_available_probes_then_navigates_to_detail(rendered):
+def test_favorites_open_shared_note_goes_to_share_page(rendered):
+    """核心回归：收藏里他人分享的笔记只能经 /s/<token> 打开。
+
+    `/api/notes/<id>` 是作者侧路由，对非作者一律 NOT_FOUND（master 看到的
+    「请求的内容不存在」），所以后端下发 share_url，前端据此直接跳分享页。
+    """
     f = block(rendered, "favoritesTab")
-    # 第一次是「打开前探测可读性」，第二次是跳到详情页后详情页自身拉取正文
-    assert f["openProbe"] >= 1, "打开前需探测详情可读性（GET /api/notes/21）"
-    assert f["openUrl"] == "/notes/21"
-    assert f["openToast"] is None, "可读时不应有提示"
+    assert f["openProbe"] == 0, "不必再预探测详情可读性"
+    assert f["openUrl"] == "/s/tok-21"
+    assert f["openToast"] is None, "正常打开不应有提示"
 
 
-def test_favorites_open_blocked_shows_explicit_message(rendered):
-    """未解锁的他人分享：详情接口返回 NOT_FOUND 时必须明确提示，而不是静默失败。"""
+def test_favorites_open_own_note_goes_to_detail(rendered):
+    """本人的笔记没有 share_url，打开走作者详情页。"""
     f = block(rendered, "favoritesTab")
-    assert f["blockedToast"] == BLOCKED_MESSAGE
-    assert f["blockedUrl"] is None, "不可读时不得跳转"
+    assert f["ownUrl"] == "/notes/51"
+
+
+def test_history_open_shared_note_goes_to_share_page(rendered):
+    """足迹与收藏同一口径。"""
+    h = block(rendered, "historyTab")
+    assert h["openUrl"] == "/s/tok-31"
 
 
 def test_favorites_remove_stale_entry(rendered):
@@ -364,7 +375,7 @@ def test_history_list_shows_title_author_and_relative_time(rendered):
     h = block(rendered, "historyTab")
     assert h["cards"] == 2
     assert h["titles"] == ["足迹·可用", STALE_TITLE]
-    assert h["authors"] == ["alice", "bob"]
+    assert h["authors"] == ["bob", "bob"], "可用条目为他人分享（带 share_url），失效条目作者同为 bob"
     assert h["staleCount"] == 1
     assert len(h["times"]) == 1, "可用条目展示相对时间；失效占位不展示时间"
     assert re.fullmatch(r"\d+ 分钟前", h["times"][0]), h["times"][0]
@@ -489,8 +500,8 @@ def test_profile_page_container(profile_css):
 def test_profile_card_and_avatar_rules(profile_css):
     card = find_rule(profile_css, ".profile-card")
     assert card is not None, "缺少 .profile-card"
-    assert prop(card, 'background-image:url("/static/img/paper.jpg")')
-    assert prop(card, "background-color:var(--c-paper-fallback)")
+    # 2026-10 改版：资料卡由羊皮纸纹理改为暖白卡面，羊皮纸移作整页背景
+    assert prop(card, "background-color:var(--c-card)")
     assert prop(card, "border:var(--bd)")
 
     avatar = find_rule(profile_css, ".profile-avatar")

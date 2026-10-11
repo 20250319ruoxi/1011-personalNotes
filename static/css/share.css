@@ -12,8 +12,7 @@
 }
 
 .share-article {
-  background-image: url("/static/img/paper.jpg");
-  background-color: var(--c-paper-fallback);
+  background-color: var(--c-card);
   border: var(--bd);
   border-radius: var(--r-2);
   padding: var(--sp-8);
@@ -134,28 +133,13 @@
   padding: var(--sp-4);
 }
 
-.share-toggle-row {
+/* 「保存并发布」/「更新密码」所在行（原开关行，改为显式按钮） */
+.share-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-3);
 }
-
-.switch {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  height: 44px;
-  font-size: var(--fs-sm);
-  cursor: pointer;
-}
-
-.switch input {
-  width: 20px;
-  height: 20px;
-}
-
-.switch input:checked { accent-color: var(--c-primary); }
 
 .share-panel .link-row {
   display: flex;

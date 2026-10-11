@@ -178,6 +178,8 @@ STATIC_LITERAL = re.compile(r"^(?P<q>['\"`])(?P<body>.*)(?P=q)$", re.S)
 INNERHTML_ALLOWLIST = {
     ("home.js", "markup"):
         "iconEl() 的 markup 形参只接收同文件 ICONS 里的静态 SVG 字符串字面量，无任何用户输入来源",
+    ("ui.js", "markup"):
+        "navIcon() 的 markup 形参只接收同文件 NAV_ICONS 里的静态 SVG 字符串字面量，无任何用户输入来源",
 }
 
 

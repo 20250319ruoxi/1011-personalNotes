@@ -45,8 +45,7 @@
    ========================================================================== */
 
 .profile-card {
-  background-image: url("/static/img/paper.jpg");
-  background-color: var(--c-paper-fallback);
+  background-color: var(--c-card);
   border: var(--bd);
   border-radius: var(--r-2);
   padding: var(--sp-8);
@@ -107,8 +106,7 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--sp-4);
   margin-top: var(--sp-6);
-  background-image: url("/static/img/paper.jpg");
-  background-color: var(--c-paper-fallback);
+  background-color: var(--c-card);
   border: var(--bd);
   border-radius: var(--r-2);
   padding: var(--sp-8);
@@ -126,8 +124,7 @@
   grid-template-columns: repeat(3, 1fr);
   gap: var(--sp-4);
   margin-top: var(--sp-6);
-  background-image: url("/static/img/paper.jpg");
-  background-color: var(--c-paper-fallback);
+  background-color: var(--c-card);
   border: var(--bd);
   border-radius: var(--r-2);
   padding: var(--sp-8);

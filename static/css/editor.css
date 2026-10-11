@@ -12,10 +12,7 @@
 }
 
 .editor-paper {
-  background-color: var(--c-paper-fallback);
-  background-image: url("/static/img/paper.jpg");
-  background-size: cover;
-  background-position: center;
+  background-color: var(--c-card);
   border: var(--bd);
   border-radius: var(--r-2);
   padding: var(--sp-6);
@@ -318,4 +315,34 @@
   .editor-panes .pane-preview { display: none; }
   .editor-panes.is-showing-preview .pane-source { display: none; }
   .editor-panes.is-showing-preview .pane-preview { display: block; }
+}
+
+/* ==========================================================================
+   已分享笔记的只读提示条（.editor-locked）
+   写接口不接受 public，编辑器对已分享笔记只读，避免用户撞到参数错误
+   ========================================================================== */
+
+.editor-locked {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--c-paper-fallback);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-1);
+}
+
+.editor-locked-title {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-info-strong);
+}
+
+.editor-locked-hint {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted-strong);
 }

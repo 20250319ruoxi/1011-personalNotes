@@ -20,6 +20,27 @@ const dialogRoot = document.createElement('div');
 dialogRoot.id = 'dialog-root';
 document.body.append(headerEl, appEl, toastRoot, dialogRoot);
 
+/* ---- 下载捕获：记录 Blob 内容与 <a download> 的文件名，避免真的触发浏览器下载 ---- */
+const downloads = [];
+let lastDownloadName = null;
+globalThis.Blob = class {
+  constructor(parts, options) {
+    this.parts = parts;
+    this.type = (options && options.type) || '';
+    downloads.push(this);
+  }
+};
+globalThis.URL = { createObjectURL: () => 'blob:test', revokeObjectURL() {} };
+const realCreateElement = document.createElement.bind(document);
+document.createElement = (tag) => {
+  const el = realCreateElement(tag);
+  if (String(tag).toLowerCase() === 'a') {
+    const realClick = el.click.bind(el);
+    el.click = () => { lastDownloadName = el.download; realClick(); };
+  }
+  return el;
+};
+
 const tick = (ms = 20) => new Promise((resolve) => setTimeout(resolve, ms));
 const flush = async () => { await tick(); await tick(); await tick(); };
 /* 收藏按钮的状态查询是「详情 → 收藏列表」两级异步，需要更多轮 tick */
@@ -350,9 +371,41 @@ safe('favoriteUnfavRead', () => {
   favorite.pressedAfterDelete = b ? b.getAttribute('aria-pressed') : null;
 });
 
+/* ==========================================================================
+   H. 下载 .md：文件名以 .md 结尾，内容为 Markdown 原文
+   ========================================================================== */
+const detailDownload = {};
+await render({ id: '11' });
+safe('detailDownloadClick', () => {
+  const btn = all(appEl, 'button').find((b) => b.textContent.trim() === '下载 .md');
+  if (!btn) throw new Error('操作条缺少「下载 .md」按钮');
+  downloads.length = 0;
+  lastDownloadName = null;
+  btn.click();
+});
+safe('detailDownloadRead', () => {
+  detailDownload.fileName = lastDownloadName;
+  detailDownload.blobCount = downloads.length;
+  detailDownload.text = downloads.length ? downloads[0].parts[0] : null;
+  detailDownload.type = downloads.length ? downloads[0].type : null;
+});
+
+/* 文件名规则（纯函数，直接调用 ui.js 的 markdownFilename） */
+const { markdownFilename } = await import('../../static/js/ui.js');
+const filenames = {
+  plain: safe('fnPlain', () => markdownFilename('我的第一篇', 'x')),
+  illegal: safe('fnIllegal', () => markdownFilename('a/b:c*d?e"f<g>h|i', 'x')),
+  blank: safe('fnBlank', () => markdownFilename('', '笔记-11')),
+  spacesOnly: safe('fnSpaces', () => markdownFilename('   ', '笔记-11')),
+  trailingDot: safe('fnDot', () => markdownFilename('标题...', 'x')),
+  longLength: safe('fnLong', () => markdownFilename('长'.repeat(80), 'x').length),
+};
+
 process.stdout.write(JSON.stringify({
   errors,
   detail,
+  detailDownload,
+  filenames,
   empties,
   editAction,
   remove,

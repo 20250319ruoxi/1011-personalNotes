@@ -34,7 +34,7 @@ HOME_BUTTON = "返回首页"
 SERVER_ERROR = "服务器开小差了，请稍后重试"
 SHARE_TITLE = "分享的笔记"
 UNTITLED = "无标题"
-SWITCH_LABEL = "开启分享"
+ENABLE_BUTTON = "保存并发布"
 PASSWORD_PLACEHOLDER = "留空表示不需要密码"
 COPY_BUTTON = "复制链接"
 COPIED_TOAST = "链接已复制"
@@ -47,6 +47,10 @@ FAVORITED_TEXT = "已收藏"
 FAVORITE_CLASS = "favorite-btn"
 UNFAVORITE_TITLE = "取消收藏"
 UNFAVORITE_MESSAGE = "确定要取消收藏这篇笔记吗？"
+
+# 下载为 .md
+DOWNLOAD_TEXT = "下载 .md"
+DOWNLOAD_TYPE = "text/markdown;charset=utf-8"
 
 
 @pytest.fixture(scope="module")
@@ -171,20 +175,30 @@ def test_share_page_meta_shows_author_and_tags(rendered):
 def test_share_page_slots_and_title(rendered):
     p = block(rendered, "sharePage")
     assert p["hasActions"] is True, "缺少 .share-actions / #share-actions 容器"
-    assert p["actionButtonTexts"] == [FAVORITE_TEXT], (
-        "分享页操作区应有且仅有收藏按钮（Phase 7 Task 2 插入）"
+    assert p["actionButtonTexts"] == [FAVORITE_TEXT, DOWNLOAD_TEXT], (
+        "分享页操作区为「收藏 + 下载 .md」（Phase 7 Task 2 插入收藏、本轮插入下载）"
     )
     assert p["hasComments"] is True, "缺少 #share-comments 容器"
     assert p["titleTag"] == f"「{SHARE_TITLE}」- 个人笔记"
 
 
-def test_share_page_has_only_the_collect_action(rendered):
-    """分享页是读者视角：不得出现编辑 / 删除 / 分享面板入口，只放收藏。"""
+def test_share_page_has_only_reader_actions(rendered):
+    """分享页是读者视角：不得出现编辑 / 删除 / 分享面板入口，只放收藏与下载。"""
     p = block(rendered, "sharePage")
     for banned in ("编辑", "删除", "关闭分享", "更新密码", "复制链接"):
         assert banned not in p["buttonTexts"], f"分享页不得出现「{banned}」入口"
     assert FAVORITE_TEXT in p["buttonTexts"]
+    assert DOWNLOAD_TEXT in p["buttonTexts"]
     assert p["hasLock"] is False
+
+
+def test_share_page_download_saves_markdown_source(rendered):
+    """读者点「下载 .md」：文件名 = 标题.md，Blob 内容 = Markdown 原文。"""
+    d = block(rendered, "shareDownload")
+    assert d["fileName"] == "分享的笔记.md"
+    assert d["blobCount"] == 1, "一次点击只触发一次下载"
+    assert d["text"] == "# 正文\n内容"
+    assert d["type"] == DOWNLOAD_TYPE
 
 
 def test_share_page_requests_the_token_once(rendered):
@@ -297,24 +311,24 @@ def test_share_route_is_public(rendered):
 def test_panel_off_state(rendered):
     p = block(rendered, "panelOff")
     assert p["exists"] is True, "缺少 .share-panel"
-    assert p["switchType"] == "checkbox"
-    assert p["switchRole"] == "switch"
-    assert p["switchChecked"] is False
-    assert p["switchLabel"] == SWITCH_LABEL
+    assert p["checkboxCount"] == 0, "开关已改为显式「保存并发布」按钮，不得再出现复选框"
+    assert p["actionButton"] == ENABLE_BUTTON
     assert p["passwordPlaceholder"] == PASSWORD_PLACEHOLDER
     assert p["passwordMaxlength"] == "64"
-    assert p["hasLinkRow"] is False, "未开启分享时不得显示链接行"
+    assert p["hasLinkRow"] is False, "未发布时不得显示链接行"
     assert p["readonlyInputs"] == 0
-    for banned in (COPY_BUTTON, CLOSE_SHARE):
+    for banned in (COPY_BUTTON, CLOSE_SHARE, "更新密码"):
         assert banned not in p["buttonTexts"]
 
 
 def test_panel_on_state(rendered):
     p = block(rendered, "panelOn")
     assert p["linkValue"] == "http://localhost/s/tok-123", "链接框必须是只读绝对地址"
-    assert p["switchChecked"] is True
+    assert p["actionButton"] == "更新密码", "已发布后首操作按钮换成「更新密码」"
+    assert p["checkboxCount"] == 0
+    assert ENABLE_BUTTON not in p["buttonTexts"], "已发布后不再显示「保存并发布」"
     for text in (COPY_BUTTON, CLOSE_SHARE, "更新密码"):
-        assert text in p["buttonTexts"], f"已开启时要显示「{text}」"
+        assert text in p["buttonTexts"], f"已发布时要显示「{text}」"
     assert p["hintText"] == "该链接无需密码"
 
 
@@ -327,9 +341,8 @@ def test_panel_enable_posts_password_and_shows_link(rendered):
     assert p["postPath"] == "/api/notes/11/share"
     assert json.loads(p["postBody"]) == {"password": "secret12"}
     assert p["linkValue"] == "http://localhost/s/tok-123"
-    assert p["switchChecked"] is True
     assert COPY_BUTTON in p["buttonTexts"]
-    assert p["onChangeCalls"] == 1, "开启成功后要通知详情页刷新状态徽标"
+    assert p["onChangeCalls"] == 1, "发布成功后要通知详情页刷新状态徽标"
     assert p["hintText"] == "该链接已设置密码"
 
 
@@ -366,7 +379,7 @@ def test_panel_close_share_confirmed(rendered):
     p = block(rendered, "panelClose")
     assert p["deletePath"] == "/api/notes/11/share"
     assert p["hasLinkRow"] is False, "关闭后隐藏链接行"
-    assert p["switchChecked"] is False
+    assert p["actionButton"] == ENABLE_BUTTON, "关闭后恢复「保存并发布」按钮"
     assert p["onChangeCalls"] == 1
 
 
@@ -387,10 +400,11 @@ def test_detail_mounts_share_panel_and_comments(rendered):
 
 def test_detail_actions_include_favorite(rendered):
     d = block(rendered, "detailMount")
-    assert d["actionTexts"] == [FAVORITE_TEXT, "编辑", "删除"]
+    assert d["actionTexts"] == [FAVORITE_TEXT, DOWNLOAD_TEXT, "编辑", "删除"]
     assert FAVORITE_CLASS in d["actionClasses"][0]
     assert "btn-secondary" in d["actionClasses"][1]
-    assert "btn-danger" in d["actionClasses"][2]
+    assert "btn-secondary" in d["actionClasses"][2]
+    assert "btn-danger" in d["actionClasses"][3]
 
 
 def test_detail_slot_order(rendered):
@@ -417,8 +431,8 @@ def test_share_page_and_article_rules(share_css):
 
     article = find_rule(share_css, ".share-article")
     assert article is not None, "缺少 .share-article"
-    assert prop(article, 'background-image:url("/static/img/paper.jpg")')
-    assert prop(article, "background-color:var(--c-paper-fallback)")
+    # 2026-10 改版：分享文章卡由羊皮纸纹理改为暖白卡面，羊皮纸移作整页背景
+    assert prop(article, "background-color:var(--c-card)")
     assert prop(article, "border:var(--bd)")
     assert prop(article, "border-radius:var(--r-2)")
     assert prop(article, "padding:var(--sp-8)")
@@ -491,17 +505,14 @@ def test_share_panel_rule(share_css):
     assert prop(panel, "flex-direction:column")
 
 
-def test_switch_control_rule(share_css):
-    sw = find_rule(share_css, ".switch")
-    assert sw is not None, "缺少 .switch"
-    assert prop(sw, "height:44px")
-    assert prop(sw, "display:flex")
-    assert prop(sw, "align-items:center")
-    assert prop(sw, "gap:var(--sp-2)")
-
-    checked = find_rule(share_css, ".switch input:checked")
-    assert checked is not None, "缺少 .switch input:checked（主色选中态）"
-    assert prop(checked, "accent-color:var(--c-primary)")
+def test_share_actions_rule(share_css):
+    """开关已改为显式「保存并发布」按钮，样式随之由 .switch 换成 .share-actions。"""
+    row = find_rule(share_css, ".share-actions")
+    assert row is not None, "缺少 .share-actions"
+    assert prop(row, "display:flex")
+    assert prop(row, "align-items:center")
+    assert prop(row, "gap:var(--sp-3)")
+    assert find_rule(share_css, ".switch") is None, "开关已移除，不得残留 .switch 规则"
 
 
 def test_share_panel_link_row_rule(share_css):
@@ -556,7 +567,7 @@ def test_share_collect_unfavorite_confirmation_and_delete(rendered):
     assert f["deletePath"] == "/api/favorites/7"
     assert f["textAfterDelete"] == FAVORITE_TEXT
     assert "is-favorited" not in f["classAfterDelete"]
-    assert f["actionCount"] == 1, "分享页操作区只有收藏一个按钮"
+    assert f["actionCount"] == 2, "分享页操作区为「收藏 + 下载 .md」"
 
 
 def test_share_actions_rule(share_css):

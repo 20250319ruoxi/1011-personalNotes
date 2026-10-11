@@ -15,6 +15,25 @@
    工具条：状态筛选 / 标签下拉 / 搜索 / 排序 / 清除筛选
    ========================================================================== */
 
+.note-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+
+.note-title {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+@media (max-width: 768px) {
+  .note-head { flex-wrap: wrap; }
+  .note-head .btn { width: 100%; }
+}
+
 .note-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -88,10 +107,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
-  background-color: var(--c-paper-fallback);
-  background-image: url("/static/img/paper.jpg");
-  background-size: cover;
-  background-position: center;
+  background-color: var(--c-card);
   border: var(--bd);
   border-radius: var(--r-2);
   padding: var(--sp-6);

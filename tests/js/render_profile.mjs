@@ -60,11 +60,12 @@ const FAVORITES = {
   items: [
     {
       note: {
-        id: 21, status: 'private', title: '收藏·可用', summary: '收藏摘要',
+        id: 21, status: 'public', title: '收藏·可用', summary: '收藏摘要',
         tags: ['生活'], updated_at: '2020-01-02T03:04:05Z',
       },
-      author: { username: 'alice', avatar: null },
+      author: { username: 'bob', avatar: null },
       available: true, favorited_at: '2020-02-01T00:00:00Z',
+      share_url: '/s/tok-21',            // 他人分享的笔记只能经分享页打开
     },
     {
       note: { id: 22, status: 'private', title: null, summary: null, tags: [], updated_at: null },
@@ -78,9 +79,10 @@ const FAVORITES = {
 const HISTORY = {
   items: [
     {
-      note: { id: 31, status: 'private', title: '足迹·可用', summary: '足迹摘要', tags: ['随笔'] },
-      author: { username: 'alice', avatar: null },
+      note: { id: 31, status: 'public', title: '足迹·可用', summary: '足迹摘要', tags: ['随笔'] },
+      author: { username: 'bob', avatar: null },
       available: true, viewed_at: RECENT,
+      share_url: '/s/tok-31',
     },
     {
       note: { id: 32, status: 'private', title: null, summary: null, tags: [] },
@@ -95,7 +97,6 @@ let loggedIn = true;
 let favoritesData = FAVORITES;
 let historyData = HISTORY;
 let notesData = NOTES;
-let detailMode = 'ok';
 let passwordPutMode = 'ok';
 const fetchCalls = [];
 
@@ -157,7 +158,6 @@ globalThis.fetch = async (path, opts = {}) => {
   }
 
   if (url.startsWith('/api/notes/')) {
-    if (detailMode === 'notfound') return errBody('NOT_FOUND', '请求的内容不存在');
     return okBody({ note: { id: 21, title: '收藏·可用', content_md: '正文', status: 'private', tags: [] } });
   }
   if (url.startsWith('/api/notes')) return okBody(notesData);
@@ -352,7 +352,7 @@ safe('saveProfileRead', () => {
   save.toast = lastToast();
   save.cardUsername = textOf(appEl, '.profile-username');
   save.cardBio = textOf(appEl, '.profile-bio');
-  const avatarBtn = field(headerEl, '.avatar-btn');
+  const avatarBtn = field(headerEl, '.avatar-btn');   // 改版后应为 null（头像菜单已移除）
   save.headerAvatarText = avatarBtn ? avatarBtn.textContent.trim() : null;
   save.headerText = serialize(headerEl);
 });
@@ -483,7 +483,6 @@ safe('favoritesTab', () => {
   favoritesTab.getPath = get ? get.path : null;
 });
 
-detailMode = 'ok';
 await renderTab('favorites');
 await safeAsync('favoriteOpen', async () => {
   historyCalls.length = 0;
@@ -493,28 +492,32 @@ await safeAsync('favoriteOpen', async () => {
   await flush();
 });
 safe('favoriteOpenRead', () => {
-  const probe = fetchCalls.find((c) => c.method === 'GET' && c.path === '/api/notes/21');
+  // 不再预探测详情可读性：他人条目直接跳分享页
   favoritesTab.openProbe = fetchCalls
     .filter((c) => c.method === 'GET' && c.path === '/api/notes/21').length;
-  favoritesTab.openProbePath = probe ? probe.path : null;
   favoritesTab.openUrl = lastNav();
   favoritesTab.openToast = lastToast();
 });
 
-detailMode = 'notfound';
+/* 本人的笔记：后端不下发 share_url，打开走作者详情页 */
+favoritesData = {
+  items: [{
+    note: { id: 51, status: 'private', title: '我自己的收藏', summary: '摘要', tags: [],
+            updated_at: '2020-01-01T00:00:00Z' },
+    author: { username: 'alice', avatar: null },
+    available: true, favorited_at: '2020-01-05T00:00:00Z',
+  }],
+  total: 1, page: 1, page_size: 10,
+};
 await renderTab('favorites');
-await safeAsync('favoriteOpenBlocked', async () => {
+await safeAsync('favoriteOpenOwn', async () => {
   historyCalls.length = 0;
-  toastRoot.innerHTML = '';
-  const card = all(appEl, '.note-card').find((c) => !c.classList.contains('is-stale'));
+  const card = field(appEl, '.note-card');
   if (card) card.click();
   await flush();
 });
-safe('favoriteOpenBlockedRead', () => {
-  favoritesTab.blockedUrl = lastNav();
-  favoritesTab.blockedToast = lastToast();
-});
-detailMode = 'ok';
+safe('favoriteOpenOwnRead', () => { favoritesTab.ownUrl = lastNav(); });
+favoritesData = FAVORITES;
 
 await renderTab('favorites');
 await safeAsync('favoriteRemoveStale', async () => {
@@ -568,6 +571,15 @@ safe('historyTab', () => {
   const get = fetchCalls.find((c) => c.method === 'GET' && c.path.startsWith('/api/history?'));
   historyTab.getPath = get ? get.path : null;
 });
+
+await renderTab('history');
+await safeAsync('historyOpen', async () => {
+  historyCalls.length = 0;
+  const card = all(appEl, '.note-card').find((c) => !c.classList.contains('is-stale'));
+  if (card) card.click();
+  await flush();
+});
+safe('historyOpenRead', () => { historyTab.openUrl = lastNav(); });
 
 await renderTab('history');
 await safeAsync('historyClearOpen', async () => {
